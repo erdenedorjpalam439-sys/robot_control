@@ -2,12 +2,12 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, orientation=landscape">
-    <title>RC Pro - Hotspot Link</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>RC Max Power Controller</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
-            background-color: #0d0d0d;
+            background-color: #0f0f0f;
             color: #fff;
             font-family: 'Segoe UI', system-ui, sans-serif;
             display: flex;
@@ -19,275 +19,152 @@
             touch-action: none;
         }
 
-        /* Landscape-optimized chassis */
-        .transmitter {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-            background: linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%);
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-            padding: 0 40px;
-            border: 10px solid #222;
-            box-sizing: border-box;
-        }
-
-        /* Textured Grip Areas */
-        .grip {
-            position: absolute;
-            bottom: 0;
-            width: 150px;
-            height: 80%;
-            background: #111;
-            opacity: 0.3;
-            z-index: 0;
-            filter: blur(20px);
-        }
-        .grip-left { left: 0; border-radius: 0 100px 100px 0; }
-        .grip-right { right: 0; border-radius: 100px 0 0 100px; }
-
-        /* Lever Wells */
-        .lever-well {
-            background: #000;
-            border: 6px solid #2a2a2a;
-            box-shadow: inset 0 0 20px rgba(0,0,0,1), 0 0 10px rgba(255,255,255,0.05);
-            position: relative;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 10;
-        }
-
-        /* Vertical Well (Throttle) */
-        .well-v { width: 90px; height: 75vh; border-radius: 45px; }
-        
-        /* Horizontal Well (Steering) */
-        .well-h { width: 40vw; height: 90px; border-radius: 45px; }
-
-        .handle {
-            width: 85px;
-            height: 85px;
-            background: radial-gradient(circle at 35% 35%, #666, #1a1a1a);
-            border: 4px solid #444;
-            border-radius: 50%;
-            z-index: 20;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.9);
-            position: absolute;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .handle::after {
-            content: '';
-            width: 25px;
-            height: 25px;
-            border: 2px solid rgba(255,255,255,0.1);
-            border-radius: 50%;
-        }
-
-        /* Center Hub */
-        .hub {
+        .controller-panel {
             display: flex;
             flex-direction: column;
-            align-items: center;
             gap: 20px;
-            z-index: 10;
+            align-items: center;
+            width: 100%;
+            max-width: 400px;
+            padding: 20px;
+        }
+
+        .drive-btn {
+            width: 100%;
+            height: 180px;
+            border-radius: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border: 4px solid #333;
+            background: linear-gradient(145deg, #222, #111);
+            transition: all 0.1s;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .drive-btn:active {
+            transform: scale(0.95);
+            border-color: #00ff41;
+            box-shadow: 0 0 30px rgba(0, 255, 65, 0.3);
+            background: #002200;
+        }
+
+        .drive-btn.reverse:active {
+            border-color: #ff3333;
+            box-shadow: 0 0 30px rgba(255, 51, 51, 0.3);
+            background: #220000;
         }
 
         .lcd {
-            width: 220px;
-            height: 140px;
+            width: 100%;
             background: #051005;
-            border: 4px solid #333;
-            border-radius: 5px;
-            padding: 12px;
+            border: 3px solid #222;
+            border-radius: 10px;
+            padding: 15px;
             font-family: 'Courier New', monospace;
             color: #0f0;
-            font-size: 14px;
-            box-shadow: inset 0 0 15px rgba(0,255,0,0.1);
-            text-transform: uppercase;
+            margin-bottom: 10px;
+            text-shadow: 0 0 5px rgba(0, 255, 0, 0.5);
         }
 
-        .pwr-btn {
-            width: 80px;
-            height: 80px;
+        .status-dot {
+            height: 10px;
+            width: 10px;
+            background-color: #333;
             border-radius: 50%;
-            background: #222;
-            border: 4px solid #111;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            color: #333;
-            transition: 0.2s;
-            box-shadow: 0 6px 0 #000;
+            display: inline-block;
+            margin-right: 8px;
         }
 
-        .pwr-btn.active {
-            color: #f00;
-            text-shadow: 0 0 15px #f00;
-            background: #201010;
-            box-shadow: 0 2px 0 #000;
-            transform: translateY(4px);
-        }
-
-        .label {
-            font-size: 12px;
-            letter-spacing: 4px;
-            color: #444;
-            font-weight: bold;
-        }
+        .status-online { background-color: #0f0; box-shadow: 0 0 10px #0f0; }
     </style>
 </head>
 <body>
 
-    <div class="transmitter">
-        <div class="grip grip-left"></div>
-        <div class="grip grip-right"></div>
-
-        <!-- Left Side: Throttle (Y-Axis) -->
-        <div class="flex flex-col items-center gap-4">
-            <div class="lever-well well-v" id="th-well">
-                <div class="handle" id="th-handle"></div>
+    <div class="controller-panel">
+        <div class="lcd">
+            <div class="flex justify-between text-[10px] opacity-60 mb-2">
+                <span>TX MODE: BINARY</span>
+                <span>MAX: 255</span>
             </div>
-            <div class="label">THROTTLE</div>
+            <div id="telemetry">
+                BRIDGE: DISCONNECTED<br>
+                THR: 0 (IDLE)
+            </div>
         </div>
 
-        <!-- Center: Diagnostics -->
-        <div class="hub">
-            <div class="lcd">
-                <div id="stat-link" class="text-[10px] mb-2 border-b border-green-900 pb-1">HOTSPOT: OFFLINE</div>
-                <div id="telemetry">
-                    PWR: [ OFF ]<br>
-                    THR: 0%<br>
-                    STR: 0%<br>
-                    RSSI: ---
-                </div>
-            </div>
-            
-            <button class="pwr-btn" id="pwr-toggle" onclick="togglePower()">
-                <svg viewBox="0 0 24 24" width="40" height="40" fill="currentColor"><path d="M16.56,5.44L15.11,6.89C16.84,7.94 18,9.83 18,12A6,6 0 0,1 12,18A6,6 0 0,1 6,12C6,9.83 7.16,7.94 8.88,6.88L7.44,5.44C5.18,7.17 3.7,9.92 3.7,13.04C3.7,17.62 7.42,21.34 12,21.34C16.58,21.34 20.3,17.62 20.3,13.04C20.3,9.92 18.82,7.17 16.56,5.44M11,3H13V13H11V3Z" /></svg>
-            </button>
-            <div class="label">POWER</div>
-        </div>
+        <!-- Forward Button -->
+        <button 
+            class="drive-btn" 
+            id="fwd-btn"
+            ontouchstart="sendCommand(255)" 
+            ontouchend="sendCommand(0)"
+            onmousedown="sendCommand(255)"
+            onmouseup="sendCommand(0)">
+            <svg viewBox="0 0 24 24" width="48" height="48" fill="currentColor" class="mb-2"><path d="M7,14L12,9L17,14H7Z" /></svg>
+            Forward
+        </button>
 
-        <!-- Right Side: Steering (X-Axis) -->
-        <div class="flex flex-col items-center gap-4">
-            <div class="lever-well well-h" id="st-well">
-                <div class="handle" id="st-handle"></div>
-            </div>
-            <div class="label">STEERING</div>
-        </div>
+        <!-- Backward Button -->
+        <button 
+            class="drive-btn reverse" 
+            id="back-btn"
+            ontouchstart="sendCommand(-255)" 
+            ontouchend="sendCommand(0)"
+            onmousedown="sendCommand(-255)"
+            onmouseup="sendCommand(0)">
+            <svg viewBox="0 0 24 24" width="48" height="48" fill="currentColor" class="mb-2"><path d="M7,10L12,15L17,10H7Z" /></svg>
+            Reverse
+        </button>
     </div>
 
     <script>
-        /**
-         * 1. Connect laptop to Phone Hotspot.
-         * 2. Run 'ipconfig' on laptop.
-         * 3. Replace IP below with laptop's IPv4.
-         */
-        const LAPTOP_IP = "172.20.10.9"; 
+        // --- CONFIGURATION ---
+        // REPLACE THIS WITH YOUR LAPTOP'S IPv4 ADDRESS
+        const LAPTOP_IP = "192.168.1.XX"; 
         const API_URL = `http://${LAPTOP_IP}:5000/control`;
 
-        let power = false;
-        let data = { throttle: 0, steering: 0 };
-        let lastSent = 0;
-
-        const thHandle = document.getElementById('th-handle');
-        const stHandle = document.getElementById('st-handle');
         const telemetry = document.getElementById('telemetry');
-        const pwrBtn = document.getElementById('pwr-toggle');
-        const linkTag = document.getElementById('stat-link');
+        let lastValue = null;
 
-        function togglePower() {
-            power = !power;
-            pwrBtn.classList.toggle('active', power);
-            updateUI();
-        }
-
-        async function sync() {
-            if (!power) return;
-            // Send at 15Hz for smooth but stable control
-            if (Date.now() - lastSent < 65) return;
+        async function sendCommand(value) {
+            // Avoid sending the same command multiple times
+            if (value === lastValue) return;
+            lastValue = value;
 
             try {
-                const res = await fetch(API_URL, {
+                const response = await fetch(API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
+                    body: JSON.stringify({
+                        throttle: value,
+                        steering: 0 // No steering for this layout
+                    })
                 });
-                linkTag.innerText = res.ok ? "HOTSPOT: LINKED" : "HOTSPOT: ERR 500";
-                updateUI("100%");
-            } catch (e) {
-                linkTag.innerText = "HOTSPOT: NO BRIDGE";
-                updateUI("0%");
-            }
-            lastSent = Date.now();
-        }
 
-        function setupLever(handle, well, axis) {
-            let active = false;
-            let rect = well.getBoundingClientRect();
-
-            const move = (e) => {
-                if (!active || !power) return;
-                const t = e.touches ? e.touches[0] : e;
-                rect = well.getBoundingClientRect();
-                
-                const limit = (axis === 'y' ? rect.height : rect.width) / 2 - 45;
-
-                if (axis === 'y') {
-                    let y = t.clientY - (rect.top + rect.height / 2);
-                    y = Math.max(-limit, Math.min(limit, y));
-                    handle.style.transform = `translateY(${y}px)`;
-                    data.throttle = Math.round((y / limit) * -100);
+                if (response.ok) {
+                    updateUI("CONNECTED", value);
                 } else {
-                    let x = t.clientX - (rect.left + rect.width / 2);
-                    x = Math.max(-limit, Math.min(limit, x));
-                    handle.style.transform = `translateX(${x}px)`;
-                    data.steering = Math.round((x / limit) * 100);
+                    updateUI("BRIDGE ERROR", value);
                 }
-                updateUI();
-                sync();
-            };
-
-            const stop = () => {
-                if (!active) return;
-                active = false;
-                handle.style.transition = "transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275)";
-                handle.style.transform = "translate(0,0)";
-                if (axis === 'y') data.throttle = 0; else data.steering = 0;
-                setTimeout(() => handle.style.transition = "", 250);
-                updateUI();
-                sync();
-            };
-
-            handle.addEventListener('touchstart', (e) => { e.preventDefault(); active = true; }, {passive: false});
-            window.addEventListener('touchmove', move, { passive: false });
-            window.addEventListener('touchend', stop);
-            
-            handle.addEventListener('mousedown', () => active = true);
-            window.addEventListener('mousemove', move);
-            window.addEventListener('mouseup', stop);
+            } catch (error) {
+                updateUI("NO BRIDGE", value);
+            }
         }
 
-        function updateUI(rssi = "---") {
-            if (!power) {
-                telemetry.innerHTML = `PWR: [ OFF ]<br>THR: 0%<br>STR: 0%<br>RSSI: ---`;
-                return;
-            }
+        function updateUI(status, value) {
+            let label = value === 255 ? "FORWARD" : value === -255 ? "REVERSE" : "IDLE";
             telemetry.innerHTML = `
-                PWR: [ ACTIVE ]<br>
-                THR: ${data.throttle}%<br>
-                STR: ${data.steering}%<br>
-                RSSI: ${rssi}
+                BRIDGE: ${status}<br>
+                THR: ${value} (${label})
             `;
         }
-
-        setupLever(thHandle, document.getElementById('th-well'), 'y');
-        setupLever(stHandle, document.getElementById('st-well'), 'x');
-        updateUI();
     </script>
 </body>
 </html>
