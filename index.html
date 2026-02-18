@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RC Pro - Mobile Fix</title>
+    <title>RC Pro - Ultra Fix</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { 
@@ -94,9 +94,9 @@
     <!-- Logs -->
     <div class="lcd" id="log-window">
         <div id="log-content">
-            <div>[ MOBILE OPTIMIZED ]</div>
-            <div>Step 1: Connect phone to laptop hotspot</div>
-            <div>Step 2: Enter Laptop IPv4 Address above</div>
+            <div>[ VERSION 2.1: EMERGENCY FIX ]</div>
+            <div>- Ensure Python is running</div>
+            <div>- Ensure Phone is on Laptop Hotspot</div>
         </div>
     </div>
 
@@ -108,7 +108,6 @@
         const statusPill = document.getElementById('status-pill');
         const ipInput = document.getElementById('ip-input');
         
-        // Retrieve last IP from storage if available
         if(localStorage.getItem('last_ip')) ipInput.value = localStorage.getItem('last_ip');
 
         let throttleValue = 0;
@@ -123,30 +122,35 @@
             logWindow.scrollTop = logWindow.scrollHeight;
         }
 
+        // Method 5: Image-based ping (Bypasses most browser CORS blocks)
         async function pingBridge() {
             const ip = ipInput.value.trim();
             if(!ip) return log("Enter IP first", "ERR");
             localStorage.setItem('last_ip', ip);
             
-            log(`Attempting to reach ${ip}...`);
+            log(`Probing http://${ip}:5000...`);
+            
+            // Try regular fetch first
             try {
-                // We use a simple fetch with no-cors to bypass complex preflights on mobile
-                const controller = new AbortController();
-                const id = setTimeout(() => controller.abort(), 3000);
-                
-                await fetch(`http://${ip}:5000/`, { mode: 'no-cors', signal: controller.signal });
-                
-                clearTimeout(id);
-                statusPill.innerText = "ONLINE";
-                statusPill.className = "status-pill online";
-                log("Connection Established!", "NET");
-                isActive = true;
+                const res = await fetch(`http://${ip}:5000/`, { 
+                    mode: 'no-cors',
+                    cache: 'no-cache'
+                });
+                setConnected(true);
+                log("Connection Verified!", "NET");
             } catch (e) {
-                statusPill.innerText = "OFFLINE";
-                statusPill.className = "status-pill";
-                log("Cannot see laptop. Check Hotspot/Firewall.", "ERR");
-                isActive = false;
+                // If fetch fails, try image-based probe
+                const img = new Image();
+                img.onload = () => { setConnected(true); log("Ping via Image Success", "NET"); };
+                img.onerror = () => { setConnected(false); log("All connection methods failed", "ERR"); };
+                img.src = `http://${ip}:5000/favicon.ico?${Date.now()}`;
             }
+        }
+
+        function setConnected(state) {
+            isActive = state;
+            statusPill.innerText = state ? "ONLINE" : "OFFLINE";
+            statusPill.className = "status-pill " + (state ? "online" : "");
         }
 
         async function transmit() {
@@ -154,26 +158,24 @@
             if (throttleValue === lastSentValue && throttleValue !== 0) return;
             
             const ip = ipInput.value.trim();
-            lastSentValue = throttleValue;
+            const currentVal = throttleValue;
+            lastSentValue = currentVal;
 
             try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 150);
-
+                // Using 'navigator.sendBeacon' or 'text/plain' to avoid preflight
                 await fetch(`http://${ip}:5000/control`, {
                     method: 'POST',
-                    mode: 'cors', // Crucial for mobile POST requests
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ throttle: throttleValue, steering: 0 }),
-                    signal: controller.signal
+                    mode: 'cors',
+                    headers: { 'Content-Type': 'text/plain' }, // Changed to text/plain to avoid CORS preflight
+                    body: JSON.stringify({ throttle: currentVal, steering: 0 }),
+                    keepalive: true
                 });
-                clearTimeout(timeoutId);
             } catch (e) {
-                // Silent catch for performance
+                // Connection lost
+                if (currentVal !== 0) setConnected(false);
             }
         }
 
-        // 20Hz Loop
         setInterval(transmit, 50);
 
         function initLever() {
@@ -189,10 +191,8 @@
                 let pos = touch.clientY - (rect.top + rect.height / 2);
                 pos = Math.max(-limit, Math.min(limit, pos));
                 
-                // Immediate Visual Feedback
                 thHandle.style.transform = `translateY(${pos}px)`;
                 
-                // Calculation
                 let raw = Math.round((pos / limit) * -255);
                 if (Math.abs(raw) < 30) throttleValue = 0;
                 else throttleValue = raw;
@@ -215,8 +215,6 @@
             
             window.addEventListener('touchmove', onMove, { passive: false });
             window.addEventListener('touchend', onEnd);
-            
-            // Mouse Fallback
             thHandle.addEventListener('mousedown', (e) => { dragging = true; rect = thWell.getBoundingClientRect(); });
             window.addEventListener('mousemove', onMove);
             window.addEventListener('mouseup', onEnd);
