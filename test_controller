@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Robot Control Hub</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #222; color: white; touch-action: manipulation; }
+        .container { margin-top: 50px; }
+        input[type=range] {
+            writing-mode: bt-lr; /* Vertical for some browsers */
+            appearance: slider-vertical;
+            width: 80px; height: 300px;
+            padding: 0 5px;
+        }
+        .value-display { font-size: 40px; margin: 20px; color: #00ff00; }
+        .ip-config { margin-bottom: 20px; }
+        input[type=text] { padding: 10px; border-radius: 5px; border: none; }
+    </style>
+</head>
+<body>
+    <h1>Robot Controller</h1>
+    
+    <div class="ip-config">
+        <p>Laptop IP Address:</p>
+        <input type="text" id="laptopIP" value="192.168.1.XX" placeholder="e.g. 192.168.1.15">
+    </div>
+
+    <div class="container">
+        <div class="value-display" id="valText">0</div>
+        <input type="range" id="throttle" min="-255" max="255" value="0" 
+               oninput="updateValue(this.value)" 
+               ontouchend="resetSlider()" onmouseup="resetSlider()">
+    </div>
+
+    <script>
+        let lastSentValue = 0;
+
+        function updateValue(val) {
+            document.getElementById('valText').innerText = val;
+            // Only send if the value changed significantly to avoid flooding
+            if (Math.abs(val - lastSentValue) > 5 || val == 0) {
+                sendToLaptop(val);
+                lastSentValue = val;
+            }
+        }
+
+        function resetSlider() {
+            const slider = document.getElementById('throttle');
+            slider.value = 0;
+            updateValue(0);
+        }
+
+        function sendToLaptop(val) {
+            const ip = document.getElementById('laptopIP').value;
+            // Sending to the Python Bridge on port 5000
+            fetch(`http://${ip}:5000/move?val=${val}`).catch(err => console.log("Check if Python Bridge is running!"));
+        }
+    </script>
+</body>
+</html>
