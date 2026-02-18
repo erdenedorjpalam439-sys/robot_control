@@ -1,60 +1,258 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Robot Control Hub</title>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>RC Pro Mobile Transmitter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { font-family: sans-serif; text-align: center; background: #222; color: white; touch-action: manipulation; }
-        .container { margin-top: 50px; }
-        input[type=range] {
-            writing-mode: bt-lr; /* Vertical for some browsers */
-            appearance: slider-vertical;
-            width: 80px; height: 300px;
-            padding: 0 5px;
+        body {
+            background-color: #0a0a0a;
+            color: #fff;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            touch-action: none; /* Prevents scrolling/zooming while driving */
         }
-        .value-display { font-size: 40px; margin: 20px; color: #00ff00; }
-        .ip-config { margin-bottom: 20px; }
-        input[type=text] { padding: 10px; border-radius: 5px; border: none; }
+
+        .transmitter {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: #1e1e1e;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 5%;
+            background-image: 
+                repeating-linear-gradient(45deg, #1e1e1e, #1e1e1e 2px, #1a1a1a 2px, #1a1a1a 4px);
+        }
+
+        /* Large Touch Wells for Thumbs */
+        .lever-well {
+            background: #050505;
+            border: 4px solid #333;
+            box-shadow: inset 0 10px 30px rgba(0,0,0,1);
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .well-v { width: 80px; height: 70vh; border-radius: 40px; }
+        .well-h { width: 40vw; height: 80px; border-radius: 40px; }
+
+        .handle {
+            width: 80px;
+            height: 80px;
+            background: radial-gradient(circle at 30% 30%, #555, #111);
+            border: 3px solid #666;
+            border-radius: 50%;
+            z-index: 10;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.8);
+            position: absolute;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .center-hub {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            width: 30%;
+        }
+
+        .lcd {
+            width: 100%;
+            max-width: 200px;
+            height: 120px;
+            background: #0a1a0a;
+            border: 4px solid #3a3a3a;
+            border-radius: 8px;
+            padding: 10px;
+            font-family: 'Consolas', monospace;
+            color: #00ff41;
+            font-size: 12px;
+            text-shadow: 0 0 5px rgba(0,255,0,0.5);
+        }
+
+        .power-switch {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: #222;
+            border: 4px solid #111;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #444;
+            box-shadow: 0 5px 0 #000;
+        }
+
+        .power-switch.active {
+            color: #ff0000;
+            background: #2a1a1a;
+            box-shadow: 0 2px 0 #000;
+            transform: translateY(3px);
+        }
+
+        .label {
+            font-size: 10px;
+            font-weight: bold;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
     </style>
 </head>
 <body>
-    <h1>Robot Controller</h1>
-    
-    <div class="ip-config">
-        <p>Laptop IP Address:</p>
-        <input type="text" id="laptopIP" value="192.168.1.XX" placeholder="e.g. 192.168.1.15">
-    </div>
 
-    <div class="container">
-        <div class="value-display" id="valText">0</div>
-        <input type="range" id="throttle" min="-255" max="255" value="0" 
-               oninput="updateValue(this.value)" 
-               ontouchend="resetSlider()" onmouseup="resetSlider()">
+    <div class="transmitter">
+        <!-- Throttle (Vertical - Left Side) -->
+        <div class="flex flex-col items-center gap-2">
+            <div class="lever-well well-v" id="th-well">
+                <div class="handle" id="th-handle"></div>
+            </div>
+            <div class="label">Throttle</div>
+        </div>
+
+        <!-- Center Display -->
+        <div class="center-hub">
+            <div class="lcd" id="lcd-screen">
+                <div class="text-[9px] opacity-50 mb-1">MOBILE LINK</div>
+                <div id="status-text">
+                    [ POWER OFF ]<br>
+                    T: 0%<br>
+                    S: 0%<br>
+                    IP: ---
+                </div>
+            </div>
+            
+            <div class="power-switch" id="pwr-btn" onclick="togglePower()">
+                <svg viewBox="0 0 24 24" width="40" height="40" fill="currentColor">
+                    <path d="M16.56,5.44L15.11,6.89C16.84,7.94 18,9.83 18,12A6,6 0 0,1 12,18A6,6 0 0,1 6,12C6,9.83 7.16,7.94 8.88,6.88L7.44,5.44C5.18,7.17 3.7,9.92 3.7,13.04C3.7,17.62 7.42,21.34 12,21.34C16.58,21.34 20.3,17.62 20.3,13.04C20.3,9.92 18.82,7.17 16.56,5.44M11,3H13V13H11V3Z" />
+                </svg>
+            </div>
+            <div class="label">System Power</div>
+        </div>
+
+        <!-- Steering (Horizontal - Right Side) -->
+        <div class="flex flex-col items-center gap-2">
+            <div class="lever-well well-h" id="st-well">
+                <div class="handle" id="st-handle"></div>
+            </div>
+            <div class="label">Steering</div>
+        </div>
     </div>
 
     <script>
-        let lastSentValue = 0;
+        // --- CONFIGURATION ---
+        // REPLACE THIS WITH YOUR LAPTOP'S IPv4 ADDRESS (e.g., "192.168.1.15")
+        const LAPTOP_IP = "192.168.1.3"; 
+        const BRIDGE_URL = `http://${LAPTOP_IP}:5000/control`;
 
-        function updateValue(val) {
-            document.getElementById('valText').innerText = val;
-            // Only send if the value changed significantly to avoid flooding
-            if (Math.abs(val - lastSentValue) > 5 || val == 0) {
-                sendToLaptop(val);
-                lastSentValue = val;
+        const thHandle = document.getElementById('th-handle');
+        const stHandle = document.getElementById('st-handle');
+        const statusText = document.getElementById('status-text');
+        const pwrBtn = document.getElementById('pwr-btn');
+
+        let isPowerOn = false;
+        let controlState = { throttle: 0, steering: 0 };
+        let lastPing = 0;
+
+        function togglePower() {
+            isPowerOn = !isPowerOn;
+            pwrBtn.classList.toggle('active', isPowerOn);
+            updateLCD();
+        }
+
+        async function syncWithBridge() {
+            if (!isPowerOn) return;
+            if (Date.now() - lastPing < 80) return; // 12Hz update rate for stability
+            
+            try {
+                const res = await fetch(BRIDGE_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(controlState)
+                });
+                updateLCD(res.ok ? "LINK OK" : "LINK ERR");
+            } catch (e) {
+                updateLCD("NO BRIDGE");
             }
+            lastPing = Date.now();
         }
 
-        function resetSlider() {
-            const slider = document.getElementById('throttle');
-            slider.value = 0;
-            updateValue(0);
+        function initLever(handle, well, axis) {
+            let dragging = false;
+            let wellRect = well.getBoundingClientRect();
+
+            const onMove = (e) => {
+                if (!dragging || !isPowerOn) return;
+                const touch = e.touches ? e.touches[0] : e;
+                wellRect = well.getBoundingClientRect(); // Update in case of orientation change
+                
+                const limit = (axis === 'y' ? wellRect.height : wellRect.width) / 2 - 40;
+
+                if (axis === 'y') {
+                    let pos = touch.clientY - (wellRect.top + wellRect.height / 2);
+                    pos = Math.max(-limit, Math.min(limit, pos));
+                    handle.style.transform = `translateY(${pos}px)`;
+                    controlState.throttle = Math.round((pos / limit) * -100);
+                } else {
+                    let pos = touch.clientX - (wellRect.left + wellRect.width / 2);
+                    pos = Math.max(-limit, Math.min(limit, pos));
+                    handle.style.transform = `translateX(${pos}px)`;
+                    controlState.steering = Math.round((pos / limit) * 100);
+                }
+                updateLCD("LINK OK");
+                syncWithBridge();
+            };
+
+            const onEnd = () => {
+                if (!dragging) return;
+                dragging = false;
+                handle.style.transition = "transform 0.2s ease-out";
+                handle.style.transform = "translate(0,0)";
+                if (axis === 'y') controlState.throttle = 0;
+                else controlState.steering = 0;
+                setTimeout(() => handle.style.transition = "", 200);
+                updateLCD("LINK OK");
+                syncWithBridge();
+            };
+
+            handle.addEventListener('touchstart', (e) => { e.preventDefault(); dragging = true; }, {passive: false});
+            window.addEventListener('touchmove', onMove, { passive: false });
+            window.addEventListener('touchend', onEnd);
+            
+            // Mouse fallbacks
+            handle.addEventListener('mousedown', () => dragging = true);
+            window.addEventListener('mousemove', onMove);
+            window.addEventListener('mouseup', onEnd);
         }
 
-        function sendToLaptop(val) {
-            const ip = document.getElementById('laptopIP').value;
-            // Sending to the Python Bridge on port 5000
-            fetch(`http://${ip}:5000/move?val=${val}`).catch(err => console.log("Check if Python Bridge is running!"));
+        function updateLCD(linkStatus = "---") {
+            if (!isPowerOn) {
+                statusText.innerHTML = `[ POWER OFF ]<br>T: 0%<br>S: 0%<br>IP: ${LAPTOP_IP}`;
+                return;
+            }
+            statusText.innerHTML = `
+                [ ACTIVE ]<br>
+                T: ${controlState.throttle}%<br>
+                S: ${controlState.steering}%<br>
+                L: ${linkStatus}
+            `;
         }
+
+        initLever(thHandle, document.getElementById('th-well'), 'y');
+        initLever(stHandle, document.getElementById('st-well'), 'x');
+        updateLCD();
     </script>
 </body>
 </html>
