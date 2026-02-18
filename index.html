@@ -3,257 +3,99 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RC Pro Lever Controller</title>
+    <title>RC Pro - Diagnostic Mode</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body {
-            background-color: #0a0a0a;
-            color: #fff;
-            font-family: 'Segoe UI', system-ui, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            overflow: hidden;
-            touch-action: none;
+        body { background: #0f0f0f; color: #fff; font-family: monospace; touch-action: none; overflow: hidden; }
+        .drive-btn {
+            width: 100%; height: 140px; border-radius: 15px; font-size: 20px; font-weight: bold;
+            border: 4px solid #333; background: #1a1a1a; transition: 0.1s;
         }
-
-        .transmitter {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-            background: #1e1e1e;
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-            background-image: 
-                repeating-linear-gradient(45deg, #1e1e1e, #1e1e1e 2px, #1a1a1a 2px, #1a1a1a 4px);
-        }
-
-        /* Lever Wells */
-        .lever-well {
-            background: #050505;
-            border: 4px solid #333;
-            box-shadow: inset 0 10px 30px rgba(0,0,0,1);
-            position: relative;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        /* Vertical Well for Throttle */
-        .well-v { width: 90px; height: 70vh; border-radius: 45px; }
-        /* Horizontal Well for Steering */
-        .well-h { width: 40vw; height: 90px; border-radius: 45px; }
-
-        .handle {
-            width: 85px;
-            height: 85px;
-            background: radial-gradient(circle at 30% 30%, #555, #111);
-            border: 3px solid #666;
-            border-radius: 50%;
-            z-index: 10;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.8);
-            position: absolute;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .center-hub {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 20px;
-            width: 25%;
-        }
-
+        .drive-btn:active { background: #004400; border-color: #0f0; transform: scale(0.98); }
+        .drive-btn.rev:active { background: #440000; border-color: #f00; }
         .lcd {
-            width: 100%;
-            background: #0a1a0a;
-            border: 4px solid #3a3a3a;
-            border-radius: 8px;
-            padding: 12px;
-            font-family: 'Consolas', monospace;
-            color: #00ff41;
-            font-size: 13px;
-            text-shadow: 0 0 5px rgba(0,255,0,0.5);
-            box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+            background: #051005; border: 2px solid #222; border-radius: 8px;
+            padding: 10px; color: #0f0; font-size: 11px; height: 180px; overflow-y: auto;
         }
-
-        .pwr-btn {
-            width: 70px;
-            height: 70px;
-            border-radius: 50%;
-            background: #222;
-            border: 4px solid #111;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            color: #444;
-            box-shadow: 0 5px 0 #000;
-        }
-
-        .pwr-btn.active {
-            color: #ff0000;
-            background: #2a1a1a;
-            box-shadow: 0 2px 0 #000;
-            transform: translateY(3px);
-            text-shadow: 0 0 10px #ff0000;
-        }
-
-        .label {
-            font-size: 11px;
-            font-weight: bold;
-            color: #666;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
+        .diag-btn { background: #333; padding: 8px; border-radius: 5px; font-size: 10px; }
     </style>
 </head>
-<body>
+<body class="p-4 flex flex-col gap-4">
 
-    <div class="transmitter">
-        <!-- Throttle Lever -->
-        <div class="flex flex-col items-center gap-4">
-            <div class="lever-well well-v" id="th-well">
-                <div class="handle" id="th-handle"></div>
-            </div>
-            <div class="label">Throttle</div>
-        </div>
+    <!-- Diagnostic Screen -->
+    <div class="lcd" id="log-window">
+        <div>[ SYSTEM READY ]</div>
+        <div>1. Connect to Laptop Hotspot</div>
+        <div>2. Enter IP: <input id="ip-input" class="bg-black border border-green-900 px-1 text-white" value="192.168.1.XX"></div>
+    </div>
 
-        <!-- Center Display -->
-        <div class="center-hub">
-            <div class="lcd">
-                <div class="text-[9px] opacity-50 mb-1">M1 -> M2 UPDATE</div>
-                <div id="status-text">
-                    [ POWER OFF ]<br>
-                    T: 0<br>
-                    S: 0<br>
-                    L: ---
-                </div>
-            </div>
-            
-            <button class="pwr-btn" id="pwr-btn" onclick="togglePower()">
-                <svg viewBox="0 0 24 24" width="36" height="36" fill="currentColor">
-                    <path d="M16.56,5.44L15.11,6.89C16.84,7.94 18,9.83 18,12A6,6 0 0,1 12,18A6,6 0 0,1 6,12C6,9.83 7.16,7.94 8.88,6.88L7.44,5.44C5.18,7.17 3.7,9.92 3.7,13.04C3.7,17.62 7.42,21.34 12,21.34C16.58,21.34 20.3,17.62 20.3,13.04C20.3,9.92 18.82,7.17 16.56,5.44M11,3H13V13H11V3Z" />
-                </svg>
-            </button>
-            <div class="label">Power</div>
-        </div>
+    <!-- Quick Tests -->
+    <div class="flex gap-2">
+        <button onclick="pingBridge()" class="diag-btn flex-1 bg-blue-900">TEST NETWORK PING</button>
+        <button onclick="clearLogs()" class="diag-btn bg-gray-700">CLEAR LOGS</button>
+    </div>
 
-        <!-- Steering Lever -->
-        <div class="flex flex-col items-center gap-4">
-            <div class="lever-well well-h" id="st-well">
-                <div class="handle" id="st-handle"></div>
-            </div>
-            <div class="label">Steering</div>
-        </div>
+    <!-- Controls -->
+    <div class="flex flex-col gap-4 mt-2">
+        <button class="drive-btn" 
+                ontouchstart="send(255)" ontouchend="send(0)" 
+                onmousedown="send(255)" onmouseup="send(0)">
+            FORWARD (255)
+        </button>
+
+        <button class="drive-btn rev" 
+                ontouchstart="send(-255)" ontouchend="send(0)" 
+                onmousedown="send(-255)" onmouseup="send(0)">
+            REVERSE (-255)
+        </button>
     </div>
 
     <script>
-        // --- CONFIG ---
-        // Replace with your laptop's Hotspot IP
-        const LAPTOP_IP = "192.168.1.XX"; 
-        const API_URL = `http://${LAPTOP_IP}:5000/control`;
+        const logs = document.getElementById('log-window');
+        let lastVal = null;
 
-        const thHandle = document.getElementById('th-handle');
-        const stHandle = document.getElementById('st-handle');
-        const statusText = document.getElementById('status-text');
-        const pwrBtn = document.getElementById('pwr-btn');
-
-        let isPowerOn = false;
-        let controlState = { throttle: 0, steering: 0 };
-        let lastPing = 0;
-
-        function togglePower() {
-            isPowerOn = !isPowerOn;
-            pwrBtn.classList.toggle('active', isPowerOn);
-            updateLCD();
+        function log(msg, type = "INFO") {
+            const div = document.createElement('div');
+            div.innerHTML = `<span class="opacity-50">[${new Date().toLocaleTimeString()}]</span> [${type}] ${msg}`;
+            logs.appendChild(div);
+            logs.scrollTop = logs.scrollHeight;
         }
 
-        async function syncWithBridge() {
-            if (!isPowerOn) return;
-            // Limit frequency to 15Hz to avoid serial congestion
-            if (Date.now() - lastPing < 65) return;
+        function clearLogs() { logs.innerHTML = "<div>[ LOGS CLEARED ]</div>"; }
+
+        async function pingBridge() {
+            const ip = document.getElementById('ip-input').value;
+            log(`Pinging http://${ip}:5000/ ...`);
+            try {
+                const start = Date.now();
+                await fetch(`http://${ip}:5000/`, { mode: 'no-cors' });
+                log(`Success! Laptop found in ${Date.now() - start}ms`, "NET");
+            } catch (e) {
+                log(`Failed to find Laptop. Check IP and Firewall.`, "ERR");
+            }
+        }
+
+        async function send(val) {
+            if (val === lastVal) return;
+            lastVal = val;
+            const ip = document.getElementById('ip-input').value;
             
             try {
-                const res = await fetch(API_URL, {
+                const res = await fetch(`http://${ip}:5000/control`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(controlState)
+                    body: JSON.stringify({ throttle: val, steering: 0 })
                 });
-                updateLCD(res.ok ? "OK" : "ERR");
-            } catch (e) {
-                updateLCD("NO LINK");
-            }
-            lastPing = Date.now();
-        }
-
-        function initLever(handle, well, axis) {
-            let dragging = false;
-            let rect = well.getBoundingClientRect();
-
-            const onMove = (e) => {
-                if (!dragging || !isPowerOn) return;
-                const touch = e.touches ? e.touches[0] : e;
-                rect = well.getBoundingClientRect();
                 
-                const limit = (axis === 'y' ? rect.height : rect.width) / 2 - 42;
-
-                if (axis === 'y') {
-                    let pos = touch.clientY - (rect.top + rect.height / 2);
-                    pos = Math.max(-limit, Math.min(limit, pos));
-                    handle.style.transform = `translateY(${pos}px)`;
-                    // Scale to 255 for AFMotor
-                    controlState.throttle = Math.round((pos / limit) * -255);
+                if(res.ok) {
+                    log(`Sent: ${val}`, "OK");
                 } else {
-                    let pos = touch.clientX - (rect.left + rect.width / 2);
-                    pos = Math.max(-limit, Math.min(limit, pos));
-                    handle.style.transform = `translateX(${pos}px)`;
-                    controlState.steering = Math.round((pos / limit) * 255);
+                    log(`Bridge responded with error ${res.status}`, "ERR");
                 }
-                updateLCD("OK");
-                syncWithBridge();
-            };
-
-            const onEnd = () => {
-                if (!dragging) return;
-                dragging = false;
-                handle.style.transition = "transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)";
-                handle.style.transform = "translate(0,0)";
-                if (axis === 'y') controlState.throttle = 0;
-                else controlState.steering = 0;
-                setTimeout(() => handle.style.transition = "", 300);
-                updateLCD("OK");
-                syncWithBridge();
-            };
-
-            handle.addEventListener('touchstart', (e) => { e.preventDefault(); dragging = true; }, {passive: false});
-            window.addEventListener('touchmove', onMove, { passive: false });
-            window.addEventListener('touchend', onEnd);
-            
-            handle.addEventListener('mousedown', () => dragging = true);
-            window.addEventListener('mousemove', onMove);
-            window.addEventListener('mouseup', onEnd);
-        }
-
-        function updateLCD(linkStatus = "---") {
-            if (!isPowerOn) {
-                statusText.innerHTML = `[ POWER OFF ]<br>T: 0<br>S: 0<br>L: ---`;
-                return;
+            } catch (e) {
+                log(`Could not reach Bridge. Check Python terminal.`, "ERR");
             }
-            statusText.innerHTML = `
-                [ ACTIVE ]<br>
-                T: ${controlState.throttle}<br>
-                S: ${controlState.steering}<br>
-                L: ${linkStatus}
-            `;
         }
-
-        initLever(thHandle, document.getElementById('th-well'), 'y');
-        initLever(stHandle, document.getElementById('st-well'), 'x');
     </script>
 </body>
 </html>
