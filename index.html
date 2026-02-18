@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RC Pro - Lever Diagnostic</title>
+    <title>RC Pro - Ultra Low Latency</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background: #0f0f0f; color: #fff; font-family: monospace; touch-action: none; overflow: hidden; }
         
-        /* Lever Well Styling */
         .well {
             background: #050505;
             border: 3px solid #333;
@@ -19,22 +18,23 @@
             align-items: center;
             border-radius: 50px;
         }
-        .well-v { width: 80px; height: 250px; }
+        .well-v { width: 85px; height: 300px; }
         
         .handle {
-            width: 74px;
-            height: 74px;
-            background: radial-gradient(circle at 30% 30%, #555, #111);
+            width: 80px;
+            height: 80px;
+            background: radial-gradient(circle at 30% 30%, #666, #111);
             border: 2px solid #444;
             border-radius: 50%;
             z-index: 10;
             box-shadow: 0 5px 15px rgba(0,0,0,0.8);
             position: absolute;
+            will-change: transform;
         }
 
         .lcd {
             background: #051005; border: 2px solid #1a1a1a; border-radius: 8px;
-            padding: 8px; color: #0f0; font-size: 10px; height: 120px; 
+            padding: 8px; color: #0f0; font-size: 10px; height: 100px; 
             overflow-y: auto; width: 100%;
         }
         
@@ -44,11 +44,17 @@
             border-radius: 8px;
             border: 1px solid #333;
         }
+
+        .latency-badge {
+            font-size: 9px;
+            padding: 2px 5px;
+            border-radius: 3px;
+            background: #222;
+        }
     </style>
 </head>
 <body class="p-4 flex flex-col items-center gap-4">
 
-    <!-- Top Configuration Bar -->
     <div class="ip-bar w-full flex flex-col gap-2">
         <div class="flex justify-between items-center">
             <span class="text-xs text-gray-400">HOTSPOT IP:</span>
@@ -56,25 +62,23 @@
         </div>
         <div class="flex gap-2">
             <button onclick="pingBridge()" class="bg-blue-900 text-[10px] py-1 px-2 rounded flex-1">PING TEST</button>
-            <button onclick="clearLogs()" class="bg-gray-700 text-[10px] py-1 px-2 rounded">CLEAR LOGS</button>
+            <div id="latency-val" class="latency-badge flex items-center">PING: --ms</div>
         </div>
     </div>
 
-    <!-- Main Lever Area -->
-    <div class="flex justify-center items-center py-4">
+    <div class="flex justify-center items-center py-2">
         <div class="flex flex-col items-center gap-2">
             <div class="well well-v" id="th-well">
                 <div class="handle" id="th-handle"></div>
             </div>
-            <span class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Throttle</span>
+            <span class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Throttle Control</span>
         </div>
     </div>
 
-    <!-- Diagnostic Console -->
     <div class="lcd" id="log-window">
         <div id="log-content">
-            <div>[ SYSTEM READY ]</div>
-            <div>Move lever to start sending T:val</div>
+            <div>[ HIGH-SPEED MODE ACTIVE ]</div>
+            <div>Frequency: 20Hz (50ms)</div>
         </div>
     </div>
 
@@ -83,56 +87,62 @@
         const logWindow = document.getElementById('log-window');
         const thHandle = document.getElementById('th-handle');
         const thWell = document.getElementById('th-well');
+        const latencyDisplay = document.getElementById('latency-val');
         
-        let lastVal = null;
-        let isPowerOn = true; // Auto-on for this version
+        let throttleValue = 0;
+        let lastSentValue = null;
+        let isTransmitting = false;
+        let abortController = new AbortController();
 
         function log(msg, type = "INFO") {
             const div = document.createElement('div');
             div.innerHTML = `<span class="opacity-50">[${new Date().toLocaleTimeString()}]</span> [${type}] ${msg}`;
             logContent.appendChild(div);
+            if (logContent.children.length > 20) logContent.removeChild(logContent.firstChild);
             logWindow.scrollTop = logWindow.scrollHeight;
-        }
-
-        // Fixed: Only clears content, not the input field
-        function clearLogs() { 
-            logContent.innerHTML = "<div>[ LOGS CLEARED ]</div>"; 
         }
 
         async function pingBridge() {
             const ip = document.getElementById('ip-input').value;
-            log(`Pinging http://${ip}:5000/ ...`);
+            const start = Date.now();
             try {
-                const start = Date.now();
-                await fetch(`http://${ip}:5000/`, { mode: 'no-cors' });
-                log(`Success! Laptop found in ${Date.now() - start}ms`, "NET");
+                await fetch(`http://${ip}:5000/`, { mode: 'no-cors', signal: AbortSignal.timeout(2000) });
+                const ms = Date.now() - start;
+                latencyDisplay.innerText = `PING: ${ms}ms`;
+                log(`Network Latency: ${ms}ms`, "NET");
             } catch (e) {
-                log(`Failed to reach Laptop. Check IP and Firewall.`, "ERR");
+                log(`Ping failed. Check IP/Hotspot.`, "ERR");
             }
         }
 
-        async function send(val) {
-            if (val === lastVal) return;
-            lastVal = val;
-            const ip = document.getElementById('ip-input').value;
+        // Optimized Send Function
+        async function transmit() {
+            // Only send if value changed or it's a stop command to ensure reliability
+            if (throttleValue === lastSentValue && throttleValue !== 0) return;
             
+            const ip = document.getElementById('ip-input').value;
+            lastSentValue = throttleValue;
+
             try {
+                // Use a short timeout to prevent request stacking
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 100);
+
                 const res = await fetch(`http://${ip}:5000/control`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ throttle: val, steering: 0 })
+                    body: JSON.stringify({ throttle: throttleValue, steering: 0 }),
+                    signal: controller.signal
                 });
-                
-                if(res.ok) {
-                    // Only log every few messages to keep LCD clean
-                    if (val === 0 || Math.abs(val) === 255) log(`Sent: ${val}`, "OK");
-                }
+                clearTimeout(timeoutId);
             } catch (e) {
-                log(`Lost Connection to Bridge.`, "ERR");
+                if (e.name !== 'AbortError') log("TX Drop", "WARN");
             }
         }
 
-        // Lever Logic
+        // Constant loop for smoother control (20 times per second)
+        setInterval(transmit, 50);
+
         function initLever() {
             let dragging = false;
             let rect = thWell.getBoundingClientRect();
@@ -146,32 +156,32 @@
                 let pos = touch.clientY - (rect.top + rect.height / 2);
                 pos = Math.max(-limit, Math.min(limit, pos));
                 
+                // Visual move (Zero Latency UI)
                 thHandle.style.transform = `translateY(${pos}px)`;
                 
-                // Scale to 255 for AFMotor (Inverted because Y down is positive)
-                let throttle = Math.round((pos / limit) * -255);
-                
-                // Deadzone check
-                if (Math.abs(throttle) < 20) throttle = 0;
-                
-                send(throttle);
+                // Update value for the transmission loop
+                let raw = Math.round((pos / limit) * -255);
+                if (Math.abs(raw) < 25) throttleValue = 0; // Deadzone
+                else throttleValue = raw;
             };
 
             const onEnd = () => {
-                if (!dragging) return;
                 dragging = false;
-                thHandle.style.transition = "transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)";
+                thHandle.style.transition = "transform 0.2s ease-out";
                 thHandle.style.transform = "translateY(0)";
-                send(0);
-                setTimeout(() => thHandle.style.transition = "", 300);
+                throttleValue = 0;
+                setTimeout(() => thHandle.style.transition = "", 200);
             };
 
-            thHandle.addEventListener('touchstart', (e) => { e.preventDefault(); dragging = true; }, {passive: false});
+            thHandle.addEventListener('touchstart', (e) => { 
+                e.preventDefault(); 
+                rect = thWell.getBoundingClientRect(); 
+                dragging = true; 
+            }, {passive: false});
+            
             window.addEventListener('touchmove', onMove, { passive: false });
             window.addEventListener('touchend', onEnd);
-            
-            // Mouse support for testing
-            thHandle.addEventListener('mousedown', () => dragging = true);
+            window.addEventListener('mousedown', (e) => { if(e.target === thHandle) dragging = true; });
             window.addEventListener('mousemove', onMove);
             window.addEventListener('mouseup', onEnd);
         }
