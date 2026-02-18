@@ -3,65 +3,101 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RC Pro - Diagnostic Mode</title>
+    <title>RC Pro - Lever Diagnostic</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background: #0f0f0f; color: #fff; font-family: monospace; touch-action: none; overflow: hidden; }
-        .drive-btn {
-            width: 100%; height: 140px; border-radius: 15px; font-size: 20px; font-weight: bold;
-            border: 4px solid #333; background: #1a1a1a; transition: 0.1s;
+        
+        /* Lever Well Styling */
+        .well {
+            background: #050505;
+            border: 3px solid #333;
+            box-shadow: inset 0 0 20px #000;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 50px;
         }
-        .drive-btn:active { background: #004400; border-color: #0f0; transform: scale(0.98); }
-        .drive-btn.rev:active { background: #440000; border-color: #f00; }
+        .well-v { width: 80px; height: 250px; }
+        
+        .handle {
+            width: 74px;
+            height: 74px;
+            background: radial-gradient(circle at 30% 30%, #555, #111);
+            border: 2px solid #444;
+            border-radius: 50%;
+            z-index: 10;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.8);
+            position: absolute;
+        }
+
         .lcd {
-            background: #051005; border: 2px solid #222; border-radius: 8px;
-            padding: 10px; color: #0f0; font-size: 11px; height: 180px; overflow-y: auto;
+            background: #051005; border: 2px solid #1a1a1a; border-radius: 8px;
+            padding: 8px; color: #0f0; font-size: 10px; height: 120px; 
+            overflow-y: auto; width: 100%;
         }
-        .diag-btn { background: #333; padding: 8px; border-radius: 5px; font-size: 10px; }
+        
+        .ip-bar {
+            background: #1a1a1a;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
     </style>
 </head>
-<body class="p-4 flex flex-col gap-4">
+<body class="p-4 flex flex-col items-center gap-4">
 
-    <!-- Diagnostic Screen -->
+    <!-- Top Configuration Bar -->
+    <div class="ip-bar w-full flex flex-col gap-2">
+        <div class="flex justify-between items-center">
+            <span class="text-xs text-gray-400">HOTSPOT IP:</span>
+            <input id="ip-input" class="bg-black border border-green-900 px-2 py-1 text-white text-xs w-32" value="192.168.1.XX">
+        </div>
+        <div class="flex gap-2">
+            <button onclick="pingBridge()" class="bg-blue-900 text-[10px] py-1 px-2 rounded flex-1">PING TEST</button>
+            <button onclick="clearLogs()" class="bg-gray-700 text-[10px] py-1 px-2 rounded">CLEAR LOGS</button>
+        </div>
+    </div>
+
+    <!-- Main Lever Area -->
+    <div class="flex justify-center items-center py-4">
+        <div class="flex flex-col items-center gap-2">
+            <div class="well well-v" id="th-well">
+                <div class="handle" id="th-handle"></div>
+            </div>
+            <span class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Throttle</span>
+        </div>
+    </div>
+
+    <!-- Diagnostic Console -->
     <div class="lcd" id="log-window">
-        <div>[ SYSTEM READY ]</div>
-        <div>1. Connect to Laptop Hotspot</div>
-        <div>2. Enter IP: <input id="ip-input" class="bg-black border border-green-900 px-1 text-white" value="192.168.1.XX"></div>
-    </div>
-
-    <!-- Quick Tests -->
-    <div class="flex gap-2">
-        <button onclick="pingBridge()" class="diag-btn flex-1 bg-blue-900">TEST NETWORK PING</button>
-        <button onclick="clearLogs()" class="diag-btn bg-gray-700">CLEAR LOGS</button>
-    </div>
-
-    <!-- Controls -->
-    <div class="flex flex-col gap-4 mt-2">
-        <button class="drive-btn" 
-                ontouchstart="send(255)" ontouchend="send(0)" 
-                onmousedown="send(255)" onmouseup="send(0)">
-            FORWARD (255)
-        </button>
-
-        <button class="drive-btn rev" 
-                ontouchstart="send(-255)" ontouchend="send(0)" 
-                onmousedown="send(-255)" onmouseup="send(0)">
-            REVERSE (-255)
-        </button>
+        <div id="log-content">
+            <div>[ SYSTEM READY ]</div>
+            <div>Move lever to start sending T:val</div>
+        </div>
     </div>
 
     <script>
-        const logs = document.getElementById('log-window');
+        const logContent = document.getElementById('log-content');
+        const logWindow = document.getElementById('log-window');
+        const thHandle = document.getElementById('th-handle');
+        const thWell = document.getElementById('th-well');
+        
         let lastVal = null;
+        let isPowerOn = true; // Auto-on for this version
 
         function log(msg, type = "INFO") {
             const div = document.createElement('div');
             div.innerHTML = `<span class="opacity-50">[${new Date().toLocaleTimeString()}]</span> [${type}] ${msg}`;
-            logs.appendChild(div);
-            logs.scrollTop = logs.scrollHeight;
+            logContent.appendChild(div);
+            logWindow.scrollTop = logWindow.scrollHeight;
         }
 
-        function clearLogs() { logs.innerHTML = "<div>[ LOGS CLEARED ]</div>"; }
+        // Fixed: Only clears content, not the input field
+        function clearLogs() { 
+            logContent.innerHTML = "<div>[ LOGS CLEARED ]</div>"; 
+        }
 
         async function pingBridge() {
             const ip = document.getElementById('ip-input').value;
@@ -71,7 +107,7 @@
                 await fetch(`http://${ip}:5000/`, { mode: 'no-cors' });
                 log(`Success! Laptop found in ${Date.now() - start}ms`, "NET");
             } catch (e) {
-                log(`Failed to find Laptop. Check IP and Firewall.`, "ERR");
+                log(`Failed to reach Laptop. Check IP and Firewall.`, "ERR");
             }
         }
 
@@ -88,14 +124,59 @@
                 });
                 
                 if(res.ok) {
-                    log(`Sent: ${val}`, "OK");
-                } else {
-                    log(`Bridge responded with error ${res.status}`, "ERR");
+                    // Only log every few messages to keep LCD clean
+                    if (val === 0 || Math.abs(val) === 255) log(`Sent: ${val}`, "OK");
                 }
             } catch (e) {
-                log(`Could not reach Bridge. Check Python terminal.`, "ERR");
+                log(`Lost Connection to Bridge.`, "ERR");
             }
         }
+
+        // Lever Logic
+        function initLever() {
+            let dragging = false;
+            let rect = thWell.getBoundingClientRect();
+
+            const onMove = (e) => {
+                if (!dragging) return;
+                const touch = e.touches ? e.touches[0] : e;
+                rect = thWell.getBoundingClientRect();
+                
+                const limit = rect.height / 2 - 40;
+                let pos = touch.clientY - (rect.top + rect.height / 2);
+                pos = Math.max(-limit, Math.min(limit, pos));
+                
+                thHandle.style.transform = `translateY(${pos}px)`;
+                
+                // Scale to 255 for AFMotor (Inverted because Y down is positive)
+                let throttle = Math.round((pos / limit) * -255);
+                
+                // Deadzone check
+                if (Math.abs(throttle) < 20) throttle = 0;
+                
+                send(throttle);
+            };
+
+            const onEnd = () => {
+                if (!dragging) return;
+                dragging = false;
+                thHandle.style.transition = "transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)";
+                thHandle.style.transform = "translateY(0)";
+                send(0);
+                setTimeout(() => thHandle.style.transition = "", 300);
+            };
+
+            thHandle.addEventListener('touchstart', (e) => { e.preventDefault(); dragging = true; }, {passive: false});
+            window.addEventListener('touchmove', onMove, { passive: false });
+            window.addEventListener('touchend', onEnd);
+            
+            // Mouse support for testing
+            thHandle.addEventListener('mousedown', () => dragging = true);
+            window.addEventListener('mousemove', onMove);
+            window.addEventListener('mouseup', onEnd);
+        }
+
+        initLever();
     </script>
 </body>
 </html>
