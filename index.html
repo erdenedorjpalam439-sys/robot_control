@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RC Pro - Ultra Fix</title>
+    <title>RC Pro - Multi-Speed</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { 
@@ -16,33 +16,40 @@
             user-select: none;
         }
         
-        .well {
-            background: #050505;
-            border: 3px solid #333;
-            box-shadow: inset 0 0 20px #000;
-            position: relative;
+        .drive-btn {
+            width: 100%;
+            height: 180px;
+            background: #1a1a1a;
+            border: 4px solid #333;
+            border-radius: 20px;
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
-            border-radius: 50px;
+            transition: all 0.1s;
+            position: relative;
         }
-        .well-v { width: 90px; height: 320px; }
-        
-        .handle {
-            width: 84px;
-            height: 84px;
-            background: radial-gradient(circle at 30% 30%, #777, #111);
-            border: 2px solid #555;
-            border-radius: 50%;
-            z-index: 10;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.9);
-            position: absolute;
-            will-change: transform;
+
+        .drive-btn:active {
+            transform: scale(0.96);
+            border-color: #0f0;
+            background: #052205;
+        }
+
+        .drive-btn.rev:active {
+            border-color: #f00;
+            background: #220505;
+        }
+
+        .speed-indicator {
+            font-size: 10px;
+            color: #666;
+            margin-top: 8px;
         }
 
         .lcd {
             background: #051005; border: 2px solid #1a1a1a; border-radius: 8px;
-            padding: 8px; color: #0f0; font-size: 10px; height: 110px; 
+            padding: 8px; color: #0f0; font-size: 10px; height: 100px; 
             overflow-y: auto; width: 100%;
         }
         
@@ -65,46 +72,47 @@
 </head>
 <body class="p-4 flex flex-col items-center gap-4">
 
-    <!-- Mobile Config -->
+    <!-- Config Bar -->
     <div class="ip-bar w-full flex flex-col gap-3">
         <div class="flex justify-between items-center">
             <span class="text-[10px] text-gray-400 font-bold">BRIDGE IP:</span>
-            <input id="ip-input" 
-                   type="text" 
-                   inputmode="decimal"
-                   class="bg-black border border-green-900 px-3 py-2 text-white text-sm w-40 rounded" 
-                   placeholder="e.g. 192.168.137.1">
+            <input id="ip-input" type="text" inputmode="decimal" class="bg-black border border-green-900 px-3 py-2 text-white text-sm w-40 rounded" placeholder="192.168.x.x">
         </div>
         <div class="flex gap-2">
-            <button onclick="pingBridge()" class="bg-blue-700 text-[11px] font-bold py-2 px-3 rounded flex-1 active:bg-blue-500">
-                1. CHECK CONNECTION
-            </button>
+            <button onclick="pingBridge()" class="bg-blue-700 text-[11px] font-bold py-2 px-3 rounded flex-1 active:bg-blue-500">SYNC CONNECTION</button>
             <div id="status-pill" class="status-pill flex items-center">OFFLINE</div>
         </div>
     </div>
 
-    <!-- Lever -->
-    <div class="flex flex-col items-center gap-2 flex-1 justify-center">
-        <div class="well well-v" id="th-well">
-            <div class="handle" id="th-handle"></div>
+    <!-- Controls -->
+    <div class="w-full flex flex-col gap-4 flex-1 justify-center">
+        <!-- Forward Button -->
+        <div id="btn-fwd" class="drive-btn">
+            <span class="text-3xl font-black">W</span>
+            <span class="text-xs font-bold text-gray-400 uppercase">Forward</span>
+            <span class="speed-indicator">Hold: 150 | Double-Hold: 255</span>
         </div>
-        <span class="text-[11px] text-gray-500 font-bold uppercase tracking-[0.2em]">Throttle</span>
+
+        <!-- Reverse Button -->
+        <div id="btn-rev" class="drive-btn rev">
+            <span class="text-3xl font-black">S</span>
+            <span class="text-xs font-bold text-gray-400 uppercase">Reverse</span>
+            <span class="speed-indicator">Hold: 150 | Double-Hold: 255</span>
+        </div>
     </div>
 
     <!-- Logs -->
     <div class="lcd" id="log-window">
         <div id="log-content">
-            <div>[ VERSION 2.1: EMERGENCY FIX ]</div>
-            <div>- Ensure Python is running</div>
-            <div>- Ensure Phone is on Laptop Hotspot</div>
+            <div>[ SPEED GESTURES ENABLED ]</div>
+            <div>- Single tap & hold: Half Speed</div>
+            <div>- Double tap & hold: Full Speed</div>
         </div>
     </div>
 
     <script>
         const logContent = document.getElementById('log-content');
         const logWindow = document.getElementById('log-window');
-        const thHandle = document.getElementById('th-handle');
-        const thWell = document.getElementById('th-well');
         const statusPill = document.getElementById('status-pill');
         const ipInput = document.getElementById('ip-input');
         
@@ -114,113 +122,76 @@
         let lastSentValue = null;
         let isActive = false;
 
+        // Gesture Variables
+        let lastTapTime = 0;
+        const DOUBLE_TAP_DELAY = 300; // ms
+
         function log(msg, type = "INFO") {
             const div = document.createElement('div');
             div.innerHTML = `<span class="opacity-50">${new Date().toLocaleTimeString().split(' ')[0]}</span> [${type}] ${msg}`;
             logContent.appendChild(div);
-            if (logContent.children.length > 15) logContent.removeChild(logContent.firstChild);
+            if (logContent.children.length > 10) logContent.removeChild(logContent.firstChild);
             logWindow.scrollTop = logWindow.scrollHeight;
         }
 
-        // Method 5: Image-based ping (Bypasses most browser CORS blocks)
         async function pingBridge() {
             const ip = ipInput.value.trim();
-            if(!ip) return log("Enter IP first", "ERR");
+            if(!ip) return;
             localStorage.setItem('last_ip', ip);
-            
-            log(`Probing http://${ip}:5000...`);
-            
-            // Try regular fetch first
             try {
-                const res = await fetch(`http://${ip}:5000/`, { 
-                    mode: 'no-cors',
-                    cache: 'no-cache'
-                });
-                setConnected(true);
-                log("Connection Verified!", "NET");
+                await fetch(`http://${ip}:5000/`, { mode: 'no-cors' });
+                isActive = true;
+                statusPill.innerText = "ONLINE";
+                statusPill.className = "status-pill online";
+                log("Connected to Bridge");
             } catch (e) {
-                // If fetch fails, try image-based probe
-                const img = new Image();
-                img.onload = () => { setConnected(true); log("Ping via Image Success", "NET"); };
-                img.onerror = () => { setConnected(false); log("All connection methods failed", "ERR"); };
-                img.src = `http://${ip}:5000/favicon.ico?${Date.now()}`;
+                log("Bridge Not Found", "ERR");
             }
-        }
-
-        function setConnected(state) {
-            isActive = state;
-            statusPill.innerText = state ? "ONLINE" : "OFFLINE";
-            statusPill.className = "status-pill " + (state ? "online" : "");
         }
 
         async function transmit() {
-            if (!isActive) return;
-            if (throttleValue === lastSentValue && throttleValue !== 0) return;
-            
+            if (!isActive || throttleValue === lastSentValue) return;
             const ip = ipInput.value.trim();
-            const currentVal = throttleValue;
-            lastSentValue = currentVal;
-
+            lastSentValue = throttleValue;
             try {
-                // Using 'navigator.sendBeacon' or 'text/plain' to avoid preflight
                 await fetch(`http://${ip}:5000/control`, {
                     method: 'POST',
                     mode: 'cors',
-                    headers: { 'Content-Type': 'text/plain' }, // Changed to text/plain to avoid CORS preflight
-                    body: JSON.stringify({ throttle: currentVal, steering: 0 }),
-                    keepalive: true
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify({ throttle: throttleValue, steering: 0 })
                 });
-            } catch (e) {
-                // Connection lost
-                if (currentVal !== 0) setConnected(false);
-            }
+            } catch (e) {}
         }
 
         setInterval(transmit, 50);
 
-        function initLever() {
-            let dragging = false;
-            let rect = null;
-
-            const onMove = (e) => {
-                if (!dragging) return;
-                const touch = e.touches ? e.touches[0] : e;
-                if (!rect) rect = thWell.getBoundingClientRect();
-                
-                const limit = rect.height / 2 - 42;
-                let pos = touch.clientY - (rect.top + rect.height / 2);
-                pos = Math.max(-limit, Math.min(limit, pos));
-                
-                thHandle.style.transform = `translateY(${pos}px)`;
-                
-                let raw = Math.round((pos / limit) * -255);
-                if (Math.abs(raw) < 30) throttleValue = 0;
-                else throttleValue = raw;
-            };
-
-            const onEnd = () => {
-                dragging = false;
-                rect = null;
-                thHandle.style.transition = "transform 0.2s ease-out";
-                thHandle.style.transform = "translateY(0)";
-                throttleValue = 0;
-                setTimeout(() => thHandle.style.transition = "", 200);
-            };
-
-            thHandle.addEventListener('touchstart', (e) => { 
-                e.preventDefault(); 
-                rect = thWell.getBoundingClientRect(); 
-                dragging = true; 
-            }, {passive: false});
+        function setupButton(id, direction) {
+            const btn = document.getElementById(id);
             
-            window.addEventListener('touchmove', onMove, { passive: false });
-            window.addEventListener('touchend', onEnd);
-            thHandle.addEventListener('mousedown', (e) => { dragging = true; rect = thWell.getBoundingClientRect(); });
-            window.addEventListener('mousemove', onMove);
-            window.addEventListener('mouseup', onEnd);
+            const handleStart = (e) => {
+                e.preventDefault();
+                const now = Date.now();
+                const isDouble = (now - lastTapTime) < DOUBLE_TAP_DELAY;
+                lastTapTime = now;
+
+                const speed = isDouble ? 255 : 150;
+                throttleValue = speed * direction;
+                
+                log(`${isDouble ? "Turbo" : "Normal"} ${direction > 0 ? "Forward" : "Reverse"}`);
+            };
+
+            const handleEnd = () => {
+                throttleValue = 0;
+            };
+
+            btn.addEventListener('touchstart', handleStart, {passive: false});
+            btn.addEventListener('touchend', handleEnd);
+            btn.addEventListener('mousedown', handleStart);
+            btn.addEventListener('mouseup', handleEnd);
         }
 
-        initLever();
+        setupButton('btn-fwd', 1);
+        setupButton('btn-rev', -1);
     </script>
 </body>
 </html>
