@@ -3,148 +3,93 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RC Pro - Sync Fix</title>
+    <title>RC Pro - 4WD Nexus</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { 
-            background: #0f0f0f; 
-            color: #fff; 
-            font-family: monospace; 
-            touch-action: none; 
-            overflow: hidden; 
-            -webkit-user-select: none; 
-            user-select: none; 
-        }
-        .drive-btn { 
-            width: 100%; 
-            height: 180px; 
-            background: #1a1a1a; 
-            border: 4px solid #333; 
-            border-radius: 20px; 
-            display: flex; 
-            flex-direction: column; 
-            justify-content: center; 
-            align-items: center; 
-            transition: all 0.1s; 
-            position: relative; 
-        }
-        .drive-btn:active, .drive-btn.active { 
-            transform: scale(0.96); 
-            border-color: #0f0; 
-            background: #052205; 
-        }
-        .drive-btn.rev:active, .drive-btn.rev.active { 
-            border-color: #f00; 
-            background: #220505; 
-        }
-        .lcd { 
-            background: #051005; 
-            border: 2px solid #1a1a1a; 
-            border-radius: 8px; 
-            padding: 8px; 
-            color: #0f0; 
-            font-size: 10px; 
-            height: 100px; 
-            overflow-y: auto; 
-            width: 100%; 
-        }
-        .ip-bar { 
-            background: #1a1a1a; 
-            padding: 12px; 
-            border-radius: 12px; 
-            border: 1px solid #333; 
-        }
-        .status-pill { 
-            font-size: 9px; 
-            padding: 4px 8px; 
-            border-radius: 20px; 
-            background: #333; 
-            font-weight: bold; 
-        }
-        .online { 
-            background: #060; 
-            color: #fff; 
-            box-shadow: 0 0 10px #0f0; 
-        }
-        .progress-bar { 
-            width: 80%; 
-            height: 4px; 
-            background: #222; 
-            margin-top: 10px; 
-            border-radius: 2px; 
-            overflow: hidden; 
-        }
-        .progress-fill { 
-            height: 100%; 
-            background: #0f0; 
-            width: 0%; 
-            transition: width 0.05s linear; 
-        }
+        body { background: #0a0a0a; color: #0f0; font-family: 'Courier New', monospace; touch-action: none; overflow: hidden; }
+        .panel { background: #111; border: 1px solid #333; border-radius: 12px; padding: 15px; }
+        .joystick-view { width: 150px; height: 150px; border: 2px solid #222; border-radius: 50%; position: relative; background: radial-gradient(circle, #1a1a1a 0%, #000 100%); }
+        .stick { width: 40px; height: 40px; background: #0f0; border-radius: 50%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 15px #0f0; }
+        .motor-indicator { width: 40px; height: 10px; background: #222; border-radius: 5px; overflow: hidden; }
+        .motor-fill { height: 100%; width: 0%; background: #0f0; transition: width 0.1s; }
+        .active-key { background: #0f0 !important; color: #000 !important; }
     </style>
 </head>
-<body class="p-4 flex flex-col items-center gap-4">
+<body class="p-6 flex flex-col gap-6 h-screen">
 
-    <!-- Config Bar -->
-    <div class="ip-bar w-full flex flex-col gap-3">
-        <div class="flex justify-between items-center">
-            <span class="text-[10px] text-gray-400 font-bold">BRIDGE IP:</span>
-            <input id="ip-input" type="text" inputmode="decimal" class="bg-black border border-green-900 px-3 py-2 text-white text-sm w-40 rounded" placeholder="192.168.x.x">
+    <!-- Header & Config -->
+    <div class="panel flex justify-between items-center">
+        <div>
+            <h1 class="text-xl font-bold tracking-tighter">NEXUS COMMAND v4.0</h1>
+            <p class="text-[10px] text-gray-500">4WD SKID-STEER PROPORTIONAL SYSTEM</p>
         </div>
-        <div class="flex gap-2">
-            <button onclick="pingBridge()" class="bg-blue-700 text-[11px] font-bold py-2 px-3 rounded flex-1">SYNC CONNECTION</button>
-            <div id="status-pill" class="status-pill flex items-center">OFFLINE</div>
+        <div class="flex gap-4 items-center">
+            <input id="ip-input" type="text" placeholder="192.168.x.x" class="bg-black border border-gray-700 px-3 py-1 rounded text-sm text-center">
+            <div id="connection-status" class="w-3 h-3 rounded-full bg-red-600 shadow-[0_0_10px_red]"></div>
         </div>
     </div>
 
-    <!-- Controls -->
-    <div class="w-full flex flex-col gap-4 flex-1 justify-center">
-        <div id="btn-fwd" class="drive-btn">
-            <span class="text-3xl font-black">W</span>
-            <span class="text-xs font-bold text-gray-400 uppercase">Forward</span>
-            <div class="progress-bar"><div id="fill-fwd" class="progress-fill"></div></div>
-        </div>
-        <div id="btn-rev" class="drive-btn rev">
-            <span class="text-3xl font-black">S</span>
-            <span class="text-xs font-bold text-gray-400 uppercase">Reverse</span>
-            <div class="progress-bar"><div id="fill-rev" class="progress-fill" style="background:#f00"></div></div>
-        </div>
-    </div>
+    <div class="flex flex-1 gap-6">
+        <!-- Left: Visualizer -->
+        <div class="panel flex-1 flex flex-col items-center justify-center gap-8">
+            <div class="flex gap-20">
+                <div class="flex flex-col gap-2">
+                    <span class="text-[9px] text-center">SIDE L (M1/M2)</span>
+                    <div class="motor-indicator w-32"><div id="bar-l" class="motor-fill"></div></div>
+                </div>
+                <div class="flex flex-col gap-2">
+                    <span class="text-[9px] text-center">SIDE R (M3/M4)</span>
+                    <div class="motor-indicator w-32"><div id="bar-r" class="motor-fill"></div></div>
+                </div>
+            </div>
 
-    <!-- Logs -->
-    <div class="lcd" id="log-window">
-        <div id="log-content">
-            <div>[ SYSTEM SYNCED ]</div>
-            <div>- Stack fallback logic: ON</div>
-            <div>- Acceleration Ramping: ON</div>
+            <div class="joystick-view">
+                <div id="visual-stick" class="stick"></div>
+            </div>
+
+            <div class="text-[11px] text-gray-400">
+                MODE: <span id="input-mode" class="text-white">IDLE</span> | 
+                PWR: <span id="pwr-display" class="text-white">0%</span>
+            </div>
+        </div>
+
+        <!-- Right: Keyboard Layout -->
+        <div class="panel w-64 flex flex-col gap-4">
+            <h2 class="text-xs border-b border-gray-800 pb-2 text-gray-400 uppercase">Input Stack</h2>
+            <div class="grid grid-cols-3 gap-2">
+                <div></div><div id="key-w" class="p-4 bg-gray-900 rounded text-center font-bold">W</div><div></div>
+                <div id="key-a" class="p-4 bg-gray-900 rounded text-center font-bold">A</div>
+                <div id="key-s" class="p-4 bg-gray-900 rounded text-center font-bold">S</div>
+                <div id="key-d" class="p-4 bg-gray-900 rounded text-center font-bold">D</div>
+            </div>
+            <div class="mt-auto bg-black p-3 rounded text-[10px] text-green-700">
+                [SYSTEM LOG]<br>
+                <div id="log-content">READY FOR LINK...</div>
+            </div>
         </div>
     </div>
 
     <script>
-        const logContent = document.getElementById('log-content');
-        const statusPill = document.getElementById('status-pill');
         const ipInput = document.getElementById('ip-input');
+        const visualStick = document.getElementById('visual-stick');
+        const logContent = document.getElementById('log-content');
         
         if(localStorage.getItem('last_ip')) ipInput.value = localStorage.getItem('last_ip');
 
-        let throttleValue = 0;
-        let lastSentValue = null;
-        let isActive = false;
-        let currentActiveInputId = null;
+        let bridgeActive = false;
+        let lastPacket = "";
+        
+        // Settings
+        const DEADZONE = 0.08;
+        const MIN_PWM = 110;
+        const MAX_PWM = 255;
 
-        const MIN_TORQUE = 15;   // Low speed start point
-        const RAMP_TIME = 1500;  // 1.5s to reach max speed
-        const TICK_RATE = 50;    // 20 commands per second
-
-        let lastTapTimes = { 'btn-fwd': 0, 'btn-rev': 0 };
-        const DOUBLE_TAP_DELAY = 300;
-        let inputStack = [];
+        // Input State
+        let keyboardStack = [];
+        let gamepadIndex = null;
 
         function log(msg) {
-            const div = document.createElement('div');
-            div.innerHTML = `<span class="opacity-50">${new Date().toLocaleTimeString().split(' ')[0]}</span> ${msg}`;
-            logContent.appendChild(div);
-            if (logContent.children.length > 8) logContent.removeChild(logContent.firstChild);
-            document.getElementById('log-window').scrollTop = 9999;
+            logContent.innerHTML = msg + "<br>" + logContent.innerHTML.split("<br>").slice(0, 3).join("<br>");
         }
 
         async function pingBridge() {
@@ -152,126 +97,108 @@
             if(!ip) return;
             localStorage.setItem('last_ip', ip);
             try {
-                // Ping without triggering CORS preflight
                 await fetch(`http://${ip}:5000/`, { mode: 'no-cors' });
-                isActive = true;
-                statusPill.innerText = "ONLINE";
-                statusPill.className = "status-pill online";
-                log("Bridge Connected");
-            } catch (e) { log("Connection Failed"); }
+                bridgeActive = true;
+                document.getElementById('connection-status').className = "w-3 h-3 rounded-full bg-green-500 shadow-[0_0_10px_#0f0]";
+                log("BRIDGE LINKED");
+            } catch (e) { log("LINK FAILED"); }
+        }
+        setInterval(pingBridge, 3000);
+
+        window.addEventListener("gamepadconnected", (e) => {
+            gamepadIndex = e.gamepad.index;
+            log("XBOX CTRL CONNECTED");
+        });
+
+        // Controller Mixing Logic
+        function calculateMotors(y, x) {
+            // y: -1 to 1 (forward/backward)
+            // x: -1 to 1 (left/right)
+            
+            // Differential Drive mixing
+            let left = y + x;
+            let right = y - x;
+
+            // Constrain
+            left = Math.max(-1, Math.min(1, left));
+            right = Math.max(-1, Math.min(1, right));
+
+            // Map to PWM
+            const process = (val) => {
+                const absVal = Math.abs(val);
+                if (absVal < 0.01) return 0;
+                // Map 0.01-1.0 to MIN_PWM-MAX_PWM
+                let pwm = MIN_PWM + (absVal * (MAX_PWM - MIN_PWM));
+                return Math.round(pwm * (val > 0 ? 1 : -1));
+            };
+
+            return { L: process(left), R: process(right), rawX: x, rawY: y };
         }
 
-        function updateAcceleration() {
-            if (inputStack.length === 0) {
-                throttleValue = 0;
-                currentActiveInputId = null;
-                updateUI(null, 0);
-                return;
+        function update() {
+            let motorData = { L: 0, R: 0, rawX: 0, rawY: 0 };
+            let mode = "IDLE";
+
+            // 1. Check Gamepad First (Priority)
+            const gp = gamepadIndex !== null ? navigator.getGamepads()[gamepadIndex] : null;
+            if (gp && (Math.abs(gp.axes[0]) > DEADZONE || Math.abs(gp.axes[1]) > DEADZONE)) {
+                // Invert Y because Up is -1 on Gamepads
+                motorData = calculateMotors(-gp.axes[1], gp.axes[0]);
+                mode = "XBOX";
+            } 
+            // 2. Fallback to Keyboard Stack
+            else if (keyboardStack.length > 0) {
+                const key = keyboardStack[keyboardStack.length - 1];
+                if (key === 'w') motorData = calculateMotors(1, 0);
+                if (key === 's') motorData = calculateMotors(-1, 0);
+                if (key === 'a') motorData = calculateMotors(0, -1);
+                if (key === 'd') motorData = calculateMotors(0, 1);
+                mode = "KEYS";
             }
 
-            const current = inputStack[inputStack.length - 1];
-            
-            // If the top of the stack changed (e.g. released S while holding W)
-            // reset the timer to ensure we build speed back up from zero
-            if (current.id !== currentActiveInputId) {
-                current.startTime = Date.now();
-                currentActiveInputId = current.id;
-            }
-
-            const elapsed = Date.now() - current.startTime;
-            const progress = Math.min(elapsed / RAMP_TIME, 1);
-            const currentSpeed = MIN_TORQUE + (progress * (current.targetSpeed - MIN_TORQUE));
-            
-            throttleValue = Math.round(currentSpeed * current.direction);
-            updateUI(current.id, progress);
+            transmit(motorData, mode);
+            requestAnimationFrame(update);
         }
 
-        function updateUI(activeId, progress) {
-            ['btn-fwd', 'btn-rev'].forEach(id => {
-                const btn = document.getElementById(id);
-                const fill = document.getElementById('fill-' + id.split('-')[1]);
-                if (id === activeId) {
-                    btn.classList.add('active');
-                    fill.style.width = (progress * 100) + "%";
-                } else {
-                    btn.classList.remove('active');
-                    fill.style.width = "0%";
-                }
-            });
-        }
+        async function transmit(data, mode) {
+            const packet = `L:${data.L},R:${data.R}`;
+            
+            // Update UI
+            document.getElementById('input-mode').innerText = mode;
+            document.getElementById('bar-l').style.width = (Math.abs(data.L)/255*100) + "%";
+            document.getElementById('bar-r').style.width = (Math.abs(data.R)/255*100) + "%";
+            visualStick.style.left = (50 + (data.rawX * 40)) + "%";
+            visualStick.style.top = (50 - (data.rawY * 40)) + "%";
+            document.getElementById('pwr-display').innerText = Math.round(Math.max(Math.abs(data.L), Math.abs(data.R)) / 255 * 100) + "%";
 
-        // Transmission loop
-        setInterval(async () => {
-            updateAcceleration();
-            
-            if (!isActive || throttleValue === lastSentValue) return;
-            
+            if (packet === lastPacket || !bridgeActive) return;
+            lastPacket = packet;
+
             const ip = ipInput.value.trim();
-            lastSentValue = throttleValue;
-            
             try {
-                // Use text/plain to avoid mobile browser security blocks (CORS)
-                await fetch(`http://${ip}:5000/control`, {
+                fetch(`http://${ip}:5000/control`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'text/plain' },
-                    body: JSON.stringify({ throttle: throttleValue, steering: 0 })
+                    body: JSON.stringify({ throttle: packet })
                 });
             } catch (e) {}
-        }, TICK_RATE);
-
-        function handleCommandStart(id, direction) {
-            if (inputStack.find(i => i.id === id)) return;
-            
-            const now = Date.now();
-            const isDouble = (now - lastTapTimes[id]) < DOUBLE_TAP_DELAY;
-            lastTapTimes[id] = now;
-            
-            const target = isDouble ? 255 : 150;
-            
-            inputStack.push({ 
-                id, 
-                direction, 
-                targetSpeed: target, 
-                startTime: Date.now() 
-            });
         }
 
-        function handleCommandEnd(id) {
-            inputStack = inputStack.filter(i => i.id !== id);
-        }
-
-        // Setup Events
-        function setupButton(id, direction) {
-            const btn = document.getElementById(id);
-            btn.addEventListener('touchstart', (e) => { 
-                e.preventDefault(); 
-                handleCommandStart(id, direction); 
-            }, {passive: false});
-            btn.addEventListener('touchend', (e) => { 
-                e.preventDefault(); 
-                handleCommandEnd(id); 
-            }, {passive: false});
-            
-            btn.addEventListener('mousedown', () => handleCommandStart(id, direction));
-            btn.addEventListener('mouseup', () => handleCommandEnd(id));
-            btn.addEventListener('mouseleave', () => handleCommandEnd(id));
-        }
-
-        setupButton('btn-fwd', 1);
-        setupButton('btn-rev', -1);
-
-        // Keyboard support
+        // Keyboard Logic
         window.addEventListener('keydown', (e) => {
             const key = e.key.toLowerCase();
-            if (key === 'w') handleCommandStart('btn-fwd', 1);
-            if (key === 's') handleCommandStart('btn-rev', -1);
+            if (['w','a','s','d'].includes(key) && !keyboardStack.includes(key)) {
+                keyboardStack.push(key);
+                document.getElementById('key-'+key).classList.add('active-key');
+            }
         });
-
         window.addEventListener('keyup', (e) => {
             const key = e.key.toLowerCase();
-            if (key === 'w') handleCommandEnd('btn-fwd');
-            if (key === 's') handleCommandEnd('btn-rev');
+            keyboardStack = keyboardStack.filter(k => k !== key);
+            if(document.getElementById('key-'+key)) document.getElementById('key-'+key).classList.remove('active-key');
         });
+
+        update();
     </script>
 </body>
 </html>
