@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RC Pro - Acceleration</title>
+    <title>RC Pro - Sync Fix</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { 
@@ -11,71 +11,74 @@
             color: #fff; 
             font-family: monospace; 
             touch-action: none; 
-            overflow: hidden;
-            -webkit-user-select: none;
-            user-select: none;
+            overflow: hidden; 
+            -webkit-user-select: none; 
+            user-select: none; 
         }
-        
-        .drive-btn {
-            width: 100%;
-            height: 180px;
-            background: #1a1a1a;
-            border: 4px solid #333;
-            border-radius: 20px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            transition: all 0.1s;
-            position: relative;
+        .drive-btn { 
+            width: 100%; 
+            height: 180px; 
+            background: #1a1a1a; 
+            border: 4px solid #333; 
+            border-radius: 20px; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            align-items: center; 
+            transition: all 0.1s; 
+            position: relative; 
         }
-
-        .drive-btn:active, .drive-btn.active {
-            transform: scale(0.96);
-            border-color: #0f0;
-            background: #052205;
+        .drive-btn:active, .drive-btn.active { 
+            transform: scale(0.96); 
+            border-color: #0f0; 
+            background: #052205; 
         }
-
-        .drive-btn.rev:active, .drive-btn.rev.active {
-            border-color: #f00;
-            background: #220505;
+        .drive-btn.rev:active, .drive-btn.rev.active { 
+            border-color: #f00; 
+            background: #220505; 
         }
-
-        .lcd {
-            background: #051005; border: 2px solid #1a1a1a; border-radius: 8px;
-            padding: 8px; color: #0f0; font-size: 10px; height: 100px; 
-            overflow-y: auto; width: 100%;
+        .lcd { 
+            background: #051005; 
+            border: 2px solid #1a1a1a; 
+            border-radius: 8px; 
+            padding: 8px; 
+            color: #0f0; 
+            font-size: 10px; 
+            height: 100px; 
+            overflow-y: auto; 
+            width: 100%; 
         }
-        
-        .ip-bar {
-            background: #1a1a1a;
-            padding: 12px;
-            border-radius: 12px;
-            border: 1px solid #333;
+        .ip-bar { 
+            background: #1a1a1a; 
+            padding: 12px; 
+            border-radius: 12px; 
+            border: 1px solid #333; 
         }
-
-        .status-pill {
-            font-size: 9px;
-            padding: 4px 8px;
-            border-radius: 20px;
-            background: #333;
-            font-weight: bold;
+        .status-pill { 
+            font-size: 9px; 
+            padding: 4px 8px; 
+            border-radius: 20px; 
+            background: #333; 
+            font-weight: bold; 
         }
-        .online { background: #060; color: #fff; box-shadow: 0 0 10px #0f0; }
-
-        .progress-bar {
-            width: 80%;
-            height: 4px;
-            background: #222;
-            margin-top: 10px;
-            border-radius: 2px;
-            overflow: hidden;
+        .online { 
+            background: #060; 
+            color: #fff; 
+            box-shadow: 0 0 10px #0f0; 
         }
-        .progress-fill {
-            height: 100%;
-            background: #0f0;
-            width: 0%;
-            transition: width 0.05s linear;
+        .progress-bar { 
+            width: 80%; 
+            height: 4px; 
+            background: #222; 
+            margin-top: 10px; 
+            border-radius: 2px; 
+            overflow: hidden; 
+        }
+        .progress-fill { 
+            height: 100%; 
+            background: #0f0; 
+            width: 0%; 
+            transition: width 0.05s linear; 
         }
     </style>
 </head>
@@ -88,7 +91,7 @@
             <input id="ip-input" type="text" inputmode="decimal" class="bg-black border border-green-900 px-3 py-2 text-white text-sm w-40 rounded" placeholder="192.168.x.x">
         </div>
         <div class="flex gap-2">
-            <button onclick="pingBridge()" class="bg-blue-700 text-[11px] font-bold py-2 px-3 rounded flex-1 active:bg-blue-500">SYNC CONNECTION</button>
+            <button onclick="pingBridge()" class="bg-blue-700 text-[11px] font-bold py-2 px-3 rounded flex-1">SYNC CONNECTION</button>
             <div id="status-pill" class="status-pill flex items-center">OFFLINE</div>
         </div>
     </div>
@@ -100,7 +103,6 @@
             <span class="text-xs font-bold text-gray-400 uppercase">Forward</span>
             <div class="progress-bar"><div id="fill-fwd" class="progress-fill"></div></div>
         </div>
-
         <div id="btn-rev" class="drive-btn rev">
             <span class="text-3xl font-black">S</span>
             <span class="text-xs font-bold text-gray-400 uppercase">Reverse</span>
@@ -111,9 +113,9 @@
     <!-- Logs -->
     <div class="lcd" id="log-window">
         <div id="log-content">
-            <div>[ ACCELERATION ENGINE v3.0 ]</div>
-            <div>- Hold to ramp speed</div>
-            <div>- Starts at torque threshold (110)</div>
+            <div>[ SYSTEM SYNCED ]</div>
+            <div>- Stack fallback logic: ON</div>
+            <div>- Acceleration Ramping: ON</div>
         </div>
     </div>
 
@@ -127,13 +129,12 @@
         let throttleValue = 0;
         let lastSentValue = null;
         let isActive = false;
+        let currentActiveInputId = null;
 
-        // Constants for Acceleration
-        const MIN_TORQUE = 110;  // Minimum value to overcome friction
-        const RAMP_TIME = 1200;  // Time in ms to reach max speed
-        const TICK_RATE = 50;    // Update rate in ms
+        const MIN_TORQUE = 15;   // Low speed start point
+        const RAMP_TIME = 1500;  // 1.5s to reach max speed
+        const TICK_RATE = 50;    // 20 commands per second
 
-        // State Tracking
         let lastTapTimes = { 'btn-fwd': 0, 'btn-rev': 0 };
         const DOUBLE_TAP_DELAY = 300;
         let inputStack = [];
@@ -142,7 +143,7 @@
             const div = document.createElement('div');
             div.innerHTML = `<span class="opacity-50">${new Date().toLocaleTimeString().split(' ')[0]}</span> ${msg}`;
             logContent.appendChild(div);
-            if (logContent.children.length > 10) logContent.removeChild(logContent.firstChild);
+            if (logContent.children.length > 8) logContent.removeChild(logContent.firstChild);
             document.getElementById('log-window').scrollTop = 9999;
         }
 
@@ -151,31 +152,34 @@
             if(!ip) return;
             localStorage.setItem('last_ip', ip);
             try {
+                // Ping without triggering CORS preflight
                 await fetch(`http://${ip}:5000/`, { mode: 'no-cors' });
                 isActive = true;
                 statusPill.innerText = "ONLINE";
                 statusPill.className = "status-pill online";
                 log("Bridge Connected");
-            } catch (e) {
-                log("Bridge Connection Failed");
-            }
+            } catch (e) { log("Connection Failed"); }
         }
 
-        // --- ACCELERATION LOGIC ---
         function updateAcceleration() {
             if (inputStack.length === 0) {
                 throttleValue = 0;
+                currentActiveInputId = null;
                 updateUI(null, 0);
                 return;
             }
 
             const current = inputStack[inputStack.length - 1];
+            
+            // If the top of the stack changed (e.g. released S while holding W)
+            // reset the timer to ensure we build speed back up from zero
+            if (current.id !== currentActiveInputId) {
+                current.startTime = Date.now();
+                currentActiveInputId = current.id;
+            }
+
             const elapsed = Date.now() - current.startTime;
-            
-            // Calculate how far through the ramp we are (0.0 to 1.0)
             const progress = Math.min(elapsed / RAMP_TIME, 1);
-            
-            // Speed starts at MIN_TORQUE and ramps to targetSpeed
             const currentSpeed = MIN_TORQUE + (progress * (current.targetSpeed - MIN_TORQUE));
             
             throttleValue = Math.round(currentSpeed * current.direction);
@@ -196,15 +200,17 @@
             });
         }
 
-        // Transmit loop
+        // Transmission loop
         setInterval(async () => {
             updateAcceleration();
             
             if (!isActive || throttleValue === lastSentValue) return;
+            
             const ip = ipInput.value.trim();
             lastSentValue = throttleValue;
             
             try {
+                // Use text/plain to avoid mobile browser security blocks (CORS)
                 await fetch(`http://${ip}:5000/control`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'text/plain' },
@@ -215,11 +221,11 @@
 
         function handleCommandStart(id, direction) {
             if (inputStack.find(i => i.id === id)) return;
-
+            
             const now = Date.now();
             const isDouble = (now - lastTapTimes[id]) < DOUBLE_TAP_DELAY;
             lastTapTimes[id] = now;
-
+            
             const target = isDouble ? 255 : 150;
             
             inputStack.push({ 
@@ -228,19 +234,24 @@
                 targetSpeed: target, 
                 startTime: Date.now() 
             });
-            
-            log(`${isDouble ? "TURBO" : "START"} ${direction > 0 ? "FWD" : "REV"}`);
         }
 
         function handleCommandEnd(id) {
             inputStack = inputStack.filter(i => i.id !== id);
         }
 
-        // Events
+        // Setup Events
         function setupButton(id, direction) {
             const btn = document.getElementById(id);
-            btn.addEventListener('touchstart', (e) => { e.preventDefault(); handleCommandStart(id, direction); }, {passive: false});
-            btn.addEventListener('touchend', (e) => { e.preventDefault(); handleCommandEnd(id); }, {passive: false});
+            btn.addEventListener('touchstart', (e) => { 
+                e.preventDefault(); 
+                handleCommandStart(id, direction); 
+            }, {passive: false});
+            btn.addEventListener('touchend', (e) => { 
+                e.preventDefault(); 
+                handleCommandEnd(id); 
+            }, {passive: false});
+            
             btn.addEventListener('mousedown', () => handleCommandStart(id, direction));
             btn.addEventListener('mouseup', () => handleCommandEnd(id));
             btn.addEventListener('mouseleave', () => handleCommandEnd(id));
@@ -249,6 +260,7 @@
         setupButton('btn-fwd', 1);
         setupButton('btn-rev', -1);
 
+        // Keyboard support
         window.addEventListener('keydown', (e) => {
             const key = e.key.toLowerCase();
             if (key === 'w') handleCommandStart('btn-fwd', 1);
