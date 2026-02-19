@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="mn">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nexus Command - Base 50</title>
+    <title>Удирдлага<\/title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { 
@@ -39,7 +39,6 @@
         .active-key { background: #0f0 !important; color: #000 !important; box-shadow: 0 0 15px #0f0; }
         .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; }
         
-        /* Motor visualization */
         .motor-indicator {
             width: 60px;
             height: 30px;
@@ -57,6 +56,11 @@
         }
         .fwd { background: #0f0; }
         .rev { background: #f00; }
+        
+        /* Hidden IP input styling */
+        input[type="password"] {
+            letter-spacing: 2px;
+        }
     </style>
 </head>
 <body class="p-6 flex flex-col gap-4 h-screen">
@@ -64,82 +68,80 @@
     <!-- Header -->
     <div class="panel flex justify-between items-center py-3">
         <div>
-            <h1 class="text-xl font-bold tracking-tighter text-white">NEXUS COMMAND <span class="text-green-500 text-xs ml-2">V2.1</span></h1>
+            <h1 class="text-xl font-bold tracking-tighter text-white">УДИРДЛАГА <span class="text-green-500 text-xs ml-2">V2.2</span></h1>
             <p class="text-[10px] text-gray-500 uppercase tracking-widest">
                 <span id="status-dot" class="status-dot bg-red-600"></span>
-                Link: <span id="link-text">Offline</span> | PWM Base: 50
+                Холболт: <span id="link-text">Салсан</span> | PWM суурь: 50
             </p>
         </div>
         <div class="flex gap-4 items-center">
-            <input id="ip-input" type="text" placeholder="Bridge IP" 
-                   class="bg-black border border-gray-700 px-3 py-1 rounded text-sm text-center text-white focus:border-green-500 outline-none w-40">
+            <div class="relative">
+                <input id="ip-input" type="password" placeholder="IP хаяг" 
+                       class="bg-black border border-gray-700 px-3 py-1 rounded text-sm text-center text-white focus:border-green-500 outline-none w-40">
+                <button onclick="toggleIP()" class="absolute right-2 top-1.5 text-[10px] text-gray-500">👁</button>
+            </div>
         </div>
     </div>
 
     <div class="flex flex-1 gap-4 overflow-hidden">
-        <!-- Center Console: Joystick and Direction -->
+        <!-- Center Console -->
         <div class="panel flex-[2] flex flex-col items-center justify-around">
             <div class="text-center">
-                <p class="text-[10px] text-gray-500 uppercase font-bold mb-1">Vector Direction</p>
-                <h2 id="dir-text" class="text-2xl font-black text-white tracking-widest italic">NEUTRAL</h2>
+                <p class="text-[10px] text-gray-500 uppercase font-bold mb-1">Хөдөлгөөний чиглэл</p>
+                <h2 id="dir-text" class="text-2xl font-black text-white tracking-widest italic">ЗОГСОлт</h2>
             </div>
 
             <div class="joystick-view">
                 <div id="visual-stick" class="stick"></div>
-                <!-- Axes lines -->
                 <div class="absolute top-1/2 left-0 w-full h-[1px] bg-gray-800"></div>
                 <div class="absolute left-1/2 top-0 h-full w-[1px] bg-gray-800"></div>
             </div>
 
             <div class="grid grid-cols-2 gap-12 text-center">
                 <div>
-                    <p class="text-[9px] text-gray-500 uppercase">Left Master</p>
+                    <p class="text-[9px] text-gray-500 uppercase">Зүүн тал</p>
                     <p id="val-l" class="text-3xl font-bold text-white leading-none">0</p>
                 </div>
                 <div>
-                    <p class="text-[9px] text-gray-500 uppercase">Right Master</p>
+                    <p class="text-[9px] text-gray-500 uppercase">Баруун тал</p>
                     <p id="val-r" class="text-3xl font-bold text-white leading-none">0</p>
                 </div>
             </div>
         </div>
 
-        <!-- Right Side: Hardware Telemetry -->
+        <!-- Right Side: Telemetry -->
         <div class="flex flex-col gap-4 w-80">
-            <!-- 4-Motor Visualizer -->
             <div class="panel flex-1">
-                <h3 class="text-[10px] text-gray-400 font-bold mb-4 border-b border-gray-800 pb-1 uppercase">Motor Status (4WD)</h3>
+                <h3 class="text-[10px] text-gray-400 font-bold mb-4 border-b border-gray-800 pb-1 uppercase">Моторын төлөв (4WD)</h3>
                 <div class="grid grid-cols-2 gap-y-6 gap-x-4">
-                    <!-- Left Side -->
                     <div class="space-y-1">
-                        <p class="text-[8px] text-gray-500">M1 (FRONT-L)</p>
+                        <p class="text-[8px] text-gray-500">M1 (УРД-ЗҮҮН)</p>
                         <div class="motor-indicator"><div id="m1-fill" class="motor-fill"></div></div>
-                        <p id="m1-label" class="text-[9px] text-gray-400">IDLE</p>
+                        <p id="m1-label" class="text-[9px] text-gray-400">ХҮЛЭЭЖ БАЙНА</p>
                     </div>
-                    <!-- Right Side -->
                     <div class="space-y-1">
-                        <p class="text-[8px] text-gray-500 text-right">M3 (FRONT-R)</p>
+                        <p class="text-[8px] text-gray-500 text-right">M3 (УРД-БАРУУН)</p>
                         <div class="motor-indicator ml-auto"><div id="m3-fill" class="motor-fill"></div></div>
-                        <p id="m3-label" class="text-[9px] text-gray-400 text-right">IDLE</p>
+                        <p id="m3-label" class="text-[9px] text-gray-400 text-right">ХҮЛЭЭЖ БАЙНА</p>
                     </div>
                     <div class="space-y-1">
-                        <p class="text-[8px] text-gray-500">M2 (REAR-L)</p>
+                        <p class="text-[8px] text-gray-500">M2 (АРД-ЗҮҮН)</p>
                         <div class="motor-indicator"><div id="m2-fill" class="motor-fill"></div></div>
-                        <p id="m2-label" class="text-[9px] text-gray-400">IDLE</p>
+                        <p id="m2-label" class="text-[9px] text-gray-400">ХҮЛЭЭЖ БАЙНА</p>
                     </div>
                     <div class="space-y-1">
-                        <p class="text-[8px] text-gray-500 text-right">M4 (REAR-R)</p>
+                        <p class="text-[8px] text-gray-500 text-right">M4 (АРД-БАРУУН)</p>
                         <div class="motor-indicator ml-auto"><div id="m4-fill" class="motor-fill"></div></div>
-                        <p id="m4-label" class="text-[9px] text-gray-400 text-right">IDLE</p>
+                        <p id="m4-label" class="text-[9px] text-gray-400 text-right">ХҮЛЭЭЖ БАЙНА</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Overrides -->
             <div class="panel">
-                <h3 class="text-[10px] text-gray-400 font-bold mb-3 uppercase">Input Mode</h3>
+                <h3 class="text-[10px] text-gray-400 font-bold mb-3 uppercase">Оролтын төрөл</h3>
                 <div class="flex justify-between items-center mb-4">
-                    <span id="input-mode" class="px-3 py-1 bg-green-950 text-green-400 border border-green-800 rounded text-[10px] font-bold">IDLE</span>
-                    <span class="text-[10px] text-gray-600">WASD Support: ON</span>
+                    <span id="input-mode" class="px-3 py-1 bg-green-950 text-green-400 border border-green-800 rounded text-[10px] font-bold">ЗОГСОЛТ</span>
+                    <span class="text-[10px] text-gray-600">WASD: ИДЭВХТЭЙ</span>
                 </div>
                 <div class="grid grid-cols-3 gap-1 max-w-[120px] mx-auto opacity-50">
                     <div></div><div id="key-w" class="p-2 bg-gray-900 border border-gray-700 rounded text-center text-xs">W</div><div></div>
@@ -162,13 +164,15 @@
 
         let bridgeActive = false;
         let lastPacket = "";
-        
         const DEADZONE = 0.12;
         const MIN_PWM = 50; 
         const MAX_PWM = 255;
-
         let keyboardStack = [];
         let gamepadIndex = null;
+
+        function toggleIP() {
+            ipInput.type = ipInput.type === "password" ? "text" : "password";
+        }
 
         async function pingBridge() {
             const ip = ipInput.value.trim();
@@ -178,11 +182,11 @@
                 await fetch(`http://${ip}:5000/`, { mode: 'no-cors' });
                 bridgeActive = true;
                 statusDot.className = "status-dot bg-green-500";
-                linkText.innerText = "Connected";
+                linkText.innerText = "Холбогдсон";
             } catch (e) { 
                 bridgeActive = false;
                 statusDot.className = "status-dot bg-red-600";
-                linkText.innerText = "Offline";
+                linkText.innerText = "Салсан";
             }
         }
         setInterval(pingBridge, 3000);
@@ -190,84 +194,66 @@
         window.addEventListener("gamepadconnected", (e) => { gamepadIndex = e.gamepad.index; });
 
         function getDirectionName(y, x) {
-            if (Math.abs(x) < DEADZONE && Math.abs(y) < DEADZONE) return "NEUTRAL";
-            
+            if (Math.abs(x) < DEADZONE && Math.abs(y) < DEADZONE) return "ЗОГСОЛТ";
             const angle = Math.atan2(y, x) * 180 / Math.PI;
-            
-            if (angle > 67.5 && angle <= 112.5) return "FORWARD";
-            if (angle > 112.5 && angle <= 157.5) return "FWD-LEFT";
-            if (angle > 22.5 && angle <= 67.5) return "FWD-RIGHT";
-            if (angle > -22.5 && angle <= 22.5) return "HARD-RIGHT";
-            if (angle > 157.5 || angle <= -157.5) return "HARD-LEFT";
-            if (angle < -67.5 && angle >= -112.5) return "BACKWARD";
-            if (angle < -112.5 && angle >= -157.5) return "BACK-LEFT";
-            if (angle < -22.5 && angle >= -67.5) return "BACK-RIGHT";
-            return "MOVING";
+            if (angle > 67.5 && angle <= 112.5) return "УРАГШАА";
+            if (angle > 112.5 && angle <= 157.5) return "УРАГШ-ЗҮҮН";
+            if (angle > 22.5 && angle <= 67.5) return "УРАГШ-БАРУУН";
+            if (angle > -22.5 && angle <= 22.5) return "БАРУУН ЭРГЭЛТ";
+            if (angle > 157.5 || angle <= -157.5) return "ЗҮҮН ЭРГЭЛТ";
+            if (angle < -67.5 && angle >= -112.5) return "ХОЙШОО";
+            if (angle < -112.5 && angle >= -157.5) return "ХОЙШ-ЗҮҮН";
+            if (angle < -22.5 && angle >= -67.5) return "ХОЙШ-БАРУУН";
+            return "ХӨДӨЛГӨӨНТЭЙ";
         }
 
         function calculateMotors(y, x) {
             let left = y + x;
             let right = y - x;
-
             left = Math.max(-1, Math.min(1, left));
             right = Math.max(-1, Math.min(1, right));
-
             const process = (val) => {
                 const absVal = Math.abs(val);
                 if (absVal < 0.02) return 0;
                 let pwm = MIN_PWM + (absVal * (MAX_PWM - MIN_PWM));
                 return Math.round(pwm * (val > 0 ? 1 : -1));
             };
-
-            const L_PWM = process(left);
-            const R_PWM = process(right);
-
-            return { L: L_PWM, R: R_PWM, rawX: x, rawY: y };
+            return { L: process(left), R: process(right), rawX: x, rawY: y };
         }
 
         function updateMotorUI(l, r) {
-            // Update master labels
             document.getElementById('val-l').innerText = l;
             document.getElementById('val-r').innerText = r;
-
-            // Update Motor Bars (assuming M1, M2 are Left and M3, M4 are Right)
             const updateMotor = (id, val) => {
                 const fill = document.getElementById(id + '-fill');
                 const label = document.getElementById(id + '-label');
                 const absVal = Math.abs(val);
-                const pct = (absVal / 255) * 100;
-                
-                fill.style.width = pct + "%";
+                fill.style.width = ((absVal / 255) * 100) + "%";
                 fill.className = `motor-fill ${val >= 0 ? 'fwd' : 'rev'}`;
-                label.innerText = val === 0 ? "IDLE" : `${val > 0 ? 'FWD' : 'REV'} @ ${absVal}`;
+                label.innerText = val === 0 ? "ЗОГСОЛТ" : `${val > 0 ? 'УРАГШ' : 'ХОЙШ'} @ ${absVal}`;
                 label.className = `text-[9px] ${val > 0 ? 'text-green-400' : (val < 0 ? 'text-red-400' : 'text-gray-400')}`;
             };
-
             updateMotor('m1', l); updateMotor('m2', l);
             updateMotor('m3', r); updateMotor('m4', r);
         }
 
         function update() {
             let motorData = { L: 0, R: 0, rawX: 0, rawY: 0 };
-            let mode = "IDLE";
-
+            let mode = "ЗОГСОЛТ";
             const gp = gamepadIndex !== null ? navigator.getGamepads()[gamepadIndex] : null;
             if (gp && (Math.abs(gp.axes[0]) > DEADZONE || Math.abs(gp.axes[1]) > DEADZONE)) {
                 motorData = calculateMotors(-gp.axes[1], gp.axes[0]);
-                mode = "GAMEPAD";
+                mode = "ГЕЙМПАД";
             } else if (keyboardStack.length > 0) {
                 const key = keyboardStack[keyboardStack.length - 1];
                 if (key === 'w') motorData = calculateMotors(1, 0);
                 if (key === 's') motorData = calculateMotors(-1, 0);
                 if (key === 'a') motorData = calculateMotors(0, -1);
                 if (key === 'd') motorData = calculateMotors(0, 1);
-                mode = "KEYBOARD";
+                mode = "ГАР";
             }
-
-            // Direction Logic
             dirText.innerText = getDirectionName(motorData.rawY, motorData.rawX);
             updateMotorUI(motorData.L, motorData.R);
-            
             transmit(motorData, mode);
             requestAnimationFrame(update);
         }
@@ -277,11 +263,10 @@
             document.getElementById('input-mode').innerText = mode;
             visualStick.style.left = (50 + (data.rawX * 40)) + "%";
             visualStick.style.top = (50 - (data.rawY * 40)) + "%";
-
             if (packet === lastPacket || !bridgeActive) return;
             lastPacket = packet;
-
-            fetch(`http://${ipInput.value.trim()}:5000/control`, {
+            const ip = ipInput.value.trim();
+            fetch(`http://${ip}:5000/control`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain' },
                 body: JSON.stringify({ throttle: packet })
