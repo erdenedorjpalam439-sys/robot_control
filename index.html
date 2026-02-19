@@ -104,9 +104,9 @@
     <!-- Logs -->
     <div class="lcd" id="log-window">
         <div id="log-content">
-            <div>[ INPUTS ENABLED: TOUCH + KEYBOARD ]</div>
-            <div>- Single W/S: Half Speed (150)</div>
-            <div>- Double W/S: Full Speed (255)</div>
+            <div>[ INPUT STACK ACTIVE ]</div>
+            <div>- Newest input takes priority</div>
+            <div>- Release falls back to previous hold</div>
         </div>
     </div>
 
@@ -122,12 +122,13 @@
         let lastSentValue = null;
         let isActive = false;
 
-        // Gesture Variables
+        // Input Tracking
         let lastTapTimes = { 'btn-fwd': 0, 'btn-rev': 0 };
-        const DOUBLE_TAP_DELAY = 300; // ms
+        const DOUBLE_TAP_DELAY = 300;
         
-        // Key Tracking
-        const keysPressed = {};
+        // The Input Stack: Keeps track of buttons/keys currently being held
+        // Format: { id: 'btn-fwd', direction: 1, speed: 150 }
+        let inputStack = [];
 
         function log(msg, type = "INFO") {
             const div = document.createElement('div');
@@ -168,30 +169,62 @@
 
         setInterval(transmit, 50);
 
+        // Updates the car's throttle based on the top item in the stack
+        function refreshThrottleFromStack() {
+            if (inputStack.length === 0) {
+                throttleValue = 0;
+                document.getElementById('btn-fwd').classList.remove('active');
+                document.getElementById('btn-rev').classList.remove('active');
+                return;
+            }
+
+            // The last item added to the array is the "newest" input
+            const activeInput = inputStack[inputStack.length - 1];
+            throttleValue = activeInput.speed * activeInput.direction;
+
+            // Update UI visuals
+            document.getElementById('btn-fwd').classList.toggle('active', activeInput.id === 'btn-fwd');
+            document.getElementById('btn-rev').classList.toggle('active', activeInput.id === 'btn-rev');
+        }
+
         function handleCommandStart(id, direction) {
+            // Avoid duplicate entries if key repeat triggers
+            if (inputStack.find(i => i.id === id)) return;
+
             const now = Date.now();
             const isDouble = (now - lastTapTimes[id]) < DOUBLE_TAP_DELAY;
             lastTapTimes[id] = now;
 
             const speed = isDouble ? 255 : 150;
-            throttleValue = speed * direction;
             
-            document.getElementById(id).classList.add('active');
-            log(`${isDouble ? "Turbo" : "Normal"} ${direction > 0 ? "Forward" : "Reverse"}`);
+            // Add to stack
+            inputStack.push({ id, direction, speed });
+            log(`${isDouble ? "Turbo" : "Normal"} ${direction > 0 ? "Fwd" : "Rev"}`);
+            
+            refreshThrottleFromStack();
         }
 
         function handleCommandEnd(id) {
-            throttleValue = 0;
-            document.getElementById(id).classList.remove('active');
+            // Remove this specific input from the stack
+            inputStack = inputStack.filter(i => i.id !== id);
+            refreshThrottleFromStack();
         }
 
         // Setup Touch/Mouse Events
         function setupButton(id, direction) {
             const btn = document.getElementById(id);
-            btn.addEventListener('touchstart', (e) => { e.preventDefault(); handleCommandStart(id, direction); }, {passive: false});
-            btn.addEventListener('touchend', (e) => { e.preventDefault(); handleCommandEnd(id); }, {passive: false});
+            btn.addEventListener('touchstart', (e) => { 
+                e.preventDefault(); 
+                handleCommandStart(id, direction); 
+            }, {passive: false});
+            btn.addEventListener('touchend', (e) => { 
+                e.preventDefault(); 
+                handleCommandEnd(id); 
+            }, {passive: false});
+            
             btn.addEventListener('mousedown', () => handleCommandStart(id, direction));
             btn.addEventListener('mouseup', () => handleCommandEnd(id));
+            btn.addEventListener('mouseleave', () => handleCommandEnd(id));
         }
 
         setupButton('btn-fwd', 1);
@@ -200,26 +233,14 @@
         // Keyboard Support
         window.addEventListener('keydown', (e) => {
             const key = e.key.toLowerCase();
-            if (keysPressed[key]) return; // Prevent repeat fire
-            
-            if (key === 'w') {
-                keysPressed[key] = true;
-                handleCommandStart('btn-fwd', 1);
-            } else if (key === 's') {
-                keysPressed[key] = true;
-                handleCommandStart('btn-rev', -1);
-            }
+            if (key === 'w') handleCommandStart('btn-fwd', 1);
+            if (key === 's') handleCommandStart('btn-rev', -1);
         });
 
         window.addEventListener('keyup', (e) => {
             const key = e.key.toLowerCase();
-            keysPressed[key] = false;
-            
-            if (key === 'w') {
-                handleCommandEnd('btn-fwd');
-            } else if (key === 's') {
-                handleCommandEnd('btn-rev');
-            }
+            if (key === 'w') handleCommandEnd('btn-fwd');
+            if (key === 's') handleCommandEnd('btn-rev');
         });
     </script>
 </body>
