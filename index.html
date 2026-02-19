@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RC Pro - Multi-Speed</title>
+    <title>RC Pro - Acceleration</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { 
@@ -41,12 +41,6 @@
             background: #220505;
         }
 
-        .speed-indicator {
-            font-size: 10px;
-            color: #666;
-            margin-top: 8px;
-        }
-
         .lcd {
             background: #051005; border: 2px solid #1a1a1a; border-radius: 8px;
             padding: 8px; color: #0f0; font-size: 10px; height: 100px; 
@@ -68,6 +62,21 @@
             font-weight: bold;
         }
         .online { background: #060; color: #fff; box-shadow: 0 0 10px #0f0; }
+
+        .progress-bar {
+            width: 80%;
+            height: 4px;
+            background: #222;
+            margin-top: 10px;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: #0f0;
+            width: 0%;
+            transition: width 0.05s linear;
+        }
     </style>
 </head>
 <body class="p-4 flex flex-col items-center gap-4">
@@ -86,33 +95,30 @@
 
     <!-- Controls -->
     <div class="w-full flex flex-col gap-4 flex-1 justify-center">
-        <!-- Forward Button -->
         <div id="btn-fwd" class="drive-btn">
             <span class="text-3xl font-black">W</span>
             <span class="text-xs font-bold text-gray-400 uppercase">Forward</span>
-            <span class="speed-indicator">Hold: 150 | Double-Hold: 255</span>
+            <div class="progress-bar"><div id="fill-fwd" class="progress-fill"></div></div>
         </div>
 
-        <!-- Reverse Button -->
         <div id="btn-rev" class="drive-btn rev">
             <span class="text-3xl font-black">S</span>
             <span class="text-xs font-bold text-gray-400 uppercase">Reverse</span>
-            <span class="speed-indicator">Hold: 150 | Double-Hold: 255</span>
+            <div class="progress-bar"><div id="fill-rev" class="progress-fill" style="background:#f00"></div></div>
         </div>
     </div>
 
     <!-- Logs -->
     <div class="lcd" id="log-window">
         <div id="log-content">
-            <div>[ INPUT STACK ACTIVE ]</div>
-            <div>- Newest input takes priority</div>
-            <div>- Release falls back to previous hold</div>
+            <div>[ ACCELERATION ENGINE v3.0 ]</div>
+            <div>- Hold to ramp speed</div>
+            <div>- Starts at torque threshold (110)</div>
         </div>
     </div>
 
     <script>
         const logContent = document.getElementById('log-content');
-        const logWindow = document.getElementById('log-window');
         const statusPill = document.getElementById('status-pill');
         const ipInput = document.getElementById('ip-input');
         
@@ -122,20 +128,22 @@
         let lastSentValue = null;
         let isActive = false;
 
-        // Input Tracking
+        // Constants for Acceleration
+        const MIN_TORQUE = 110;  // Minimum value to overcome friction
+        const RAMP_TIME = 1200;  // Time in ms to reach max speed
+        const TICK_RATE = 50;    // Update rate in ms
+
+        // State Tracking
         let lastTapTimes = { 'btn-fwd': 0, 'btn-rev': 0 };
         const DOUBLE_TAP_DELAY = 300;
-        
-        // The Input Stack: Keeps track of buttons/keys currently being held
-        // Format: { id: 'btn-fwd', direction: 1, speed: 150 }
         let inputStack = [];
 
-        function log(msg, type = "INFO") {
+        function log(msg) {
             const div = document.createElement('div');
-            div.innerHTML = `<span class="opacity-50">${new Date().toLocaleTimeString().split(' ')[0]}</span> [${type}] ${msg}`;
+            div.innerHTML = `<span class="opacity-50">${new Date().toLocaleTimeString().split(' ')[0]}</span> ${msg}`;
             logContent.appendChild(div);
             if (logContent.children.length > 10) logContent.removeChild(logContent.firstChild);
-            logWindow.scrollTop = logWindow.scrollHeight;
+            document.getElementById('log-window').scrollTop = 9999;
         }
 
         async function pingBridge() {
@@ -147,81 +155,92 @@
                 isActive = true;
                 statusPill.innerText = "ONLINE";
                 statusPill.className = "status-pill online";
-                log("Connected to Bridge");
+                log("Bridge Connected");
             } catch (e) {
-                log("Bridge Not Found", "ERR");
+                log("Bridge Connection Failed");
             }
         }
 
-        async function transmit() {
+        // --- ACCELERATION LOGIC ---
+        function updateAcceleration() {
+            if (inputStack.length === 0) {
+                throttleValue = 0;
+                updateUI(null, 0);
+                return;
+            }
+
+            const current = inputStack[inputStack.length - 1];
+            const elapsed = Date.now() - current.startTime;
+            
+            // Calculate how far through the ramp we are (0.0 to 1.0)
+            const progress = Math.min(elapsed / RAMP_TIME, 1);
+            
+            // Speed starts at MIN_TORQUE and ramps to targetSpeed
+            const currentSpeed = MIN_TORQUE + (progress * (current.targetSpeed - MIN_TORQUE));
+            
+            throttleValue = Math.round(currentSpeed * current.direction);
+            updateUI(current.id, progress);
+        }
+
+        function updateUI(activeId, progress) {
+            ['btn-fwd', 'btn-rev'].forEach(id => {
+                const btn = document.getElementById(id);
+                const fill = document.getElementById('fill-' + id.split('-')[1]);
+                if (id === activeId) {
+                    btn.classList.add('active');
+                    fill.style.width = (progress * 100) + "%";
+                } else {
+                    btn.classList.remove('active');
+                    fill.style.width = "0%";
+                }
+            });
+        }
+
+        // Transmit loop
+        setInterval(async () => {
+            updateAcceleration();
+            
             if (!isActive || throttleValue === lastSentValue) return;
             const ip = ipInput.value.trim();
             lastSentValue = throttleValue;
+            
             try {
                 await fetch(`http://${ip}:5000/control`, {
                     method: 'POST',
-                    mode: 'cors',
                     headers: { 'Content-Type': 'text/plain' },
                     body: JSON.stringify({ throttle: throttleValue, steering: 0 })
                 });
             } catch (e) {}
-        }
-
-        setInterval(transmit, 50);
-
-        // Updates the car's throttle based on the top item in the stack
-        function refreshThrottleFromStack() {
-            if (inputStack.length === 0) {
-                throttleValue = 0;
-                document.getElementById('btn-fwd').classList.remove('active');
-                document.getElementById('btn-rev').classList.remove('active');
-                return;
-            }
-
-            // The last item added to the array is the "newest" input
-            const activeInput = inputStack[inputStack.length - 1];
-            throttleValue = activeInput.speed * activeInput.direction;
-
-            // Update UI visuals
-            document.getElementById('btn-fwd').classList.toggle('active', activeInput.id === 'btn-fwd');
-            document.getElementById('btn-rev').classList.toggle('active', activeInput.id === 'btn-rev');
-        }
+        }, TICK_RATE);
 
         function handleCommandStart(id, direction) {
-            // Avoid duplicate entries if key repeat triggers
             if (inputStack.find(i => i.id === id)) return;
 
             const now = Date.now();
             const isDouble = (now - lastTapTimes[id]) < DOUBLE_TAP_DELAY;
             lastTapTimes[id] = now;
 
-            const speed = isDouble ? 255 : 150;
+            const target = isDouble ? 255 : 150;
             
-            // Add to stack
-            inputStack.push({ id, direction, speed });
-            log(`${isDouble ? "Turbo" : "Normal"} ${direction > 0 ? "Fwd" : "Rev"}`);
+            inputStack.push({ 
+                id, 
+                direction, 
+                targetSpeed: target, 
+                startTime: Date.now() 
+            });
             
-            refreshThrottleFromStack();
+            log(`${isDouble ? "TURBO" : "START"} ${direction > 0 ? "FWD" : "REV"}`);
         }
 
         function handleCommandEnd(id) {
-            // Remove this specific input from the stack
             inputStack = inputStack.filter(i => i.id !== id);
-            refreshThrottleFromStack();
         }
 
-        // Setup Touch/Mouse Events
+        // Events
         function setupButton(id, direction) {
             const btn = document.getElementById(id);
-            btn.addEventListener('touchstart', (e) => { 
-                e.preventDefault(); 
-                handleCommandStart(id, direction); 
-            }, {passive: false});
-            btn.addEventListener('touchend', (e) => { 
-                e.preventDefault(); 
-                handleCommandEnd(id); 
-            }, {passive: false});
-            
+            btn.addEventListener('touchstart', (e) => { e.preventDefault(); handleCommandStart(id, direction); }, {passive: false});
+            btn.addEventListener('touchend', (e) => { e.preventDefault(); handleCommandEnd(id); }, {passive: false});
             btn.addEventListener('mousedown', () => handleCommandStart(id, direction));
             btn.addEventListener('mouseup', () => handleCommandEnd(id));
             btn.addEventListener('mouseleave', () => handleCommandEnd(id));
@@ -230,7 +249,6 @@
         setupButton('btn-fwd', 1);
         setupButton('btn-rev', -1);
 
-        // Keyboard Support
         window.addEventListener('keydown', (e) => {
             const key = e.key.toLowerCase();
             if (key === 'w') handleCommandStart('btn-fwd', 1);
