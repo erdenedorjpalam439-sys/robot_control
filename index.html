@@ -30,13 +30,13 @@
             position: relative;
         }
 
-        .drive-btn:active {
+        .drive-btn:active, .drive-btn.active {
             transform: scale(0.96);
             border-color: #0f0;
             background: #052205;
         }
 
-        .drive-btn.rev:active {
+        .drive-btn.rev:active, .drive-btn.rev.active {
             border-color: #f00;
             background: #220505;
         }
@@ -104,9 +104,9 @@
     <!-- Logs -->
     <div class="lcd" id="log-window">
         <div id="log-content">
-            <div>[ SPEED GESTURES ENABLED ]</div>
-            <div>- Single tap & hold: Half Speed</div>
-            <div>- Double tap & hold: Full Speed</div>
+            <div>[ INPUTS ENABLED: TOUCH + KEYBOARD ]</div>
+            <div>- Single W/S: Half Speed (150)</div>
+            <div>- Double W/S: Full Speed (255)</div>
         </div>
     </div>
 
@@ -123,8 +123,11 @@
         let isActive = false;
 
         // Gesture Variables
-        let lastTapTime = 0;
+        let lastTapTimes = { 'btn-fwd': 0, 'btn-rev': 0 };
         const DOUBLE_TAP_DELAY = 300; // ms
+        
+        // Key Tracking
+        const keysPressed = {};
 
         function log(msg, type = "INFO") {
             const div = document.createElement('div');
@@ -165,33 +168,59 @@
 
         setInterval(transmit, 50);
 
+        function handleCommandStart(id, direction) {
+            const now = Date.now();
+            const isDouble = (now - lastTapTimes[id]) < DOUBLE_TAP_DELAY;
+            lastTapTimes[id] = now;
+
+            const speed = isDouble ? 255 : 150;
+            throttleValue = speed * direction;
+            
+            document.getElementById(id).classList.add('active');
+            log(`${isDouble ? "Turbo" : "Normal"} ${direction > 0 ? "Forward" : "Reverse"}`);
+        }
+
+        function handleCommandEnd(id) {
+            throttleValue = 0;
+            document.getElementById(id).classList.remove('active');
+        }
+
+        // Setup Touch/Mouse Events
         function setupButton(id, direction) {
             const btn = document.getElementById(id);
-            
-            const handleStart = (e) => {
-                e.preventDefault();
-                const now = Date.now();
-                const isDouble = (now - lastTapTime) < DOUBLE_TAP_DELAY;
-                lastTapTime = now;
-
-                const speed = isDouble ? 255 : 150;
-                throttleValue = speed * direction;
-                
-                log(`${isDouble ? "Turbo" : "Normal"} ${direction > 0 ? "Forward" : "Reverse"}`);
-            };
-
-            const handleEnd = () => {
-                throttleValue = 0;
-            };
-
-            btn.addEventListener('touchstart', handleStart, {passive: false});
-            btn.addEventListener('touchend', handleEnd);
-            btn.addEventListener('mousedown', handleStart);
-            btn.addEventListener('mouseup', handleEnd);
+            btn.addEventListener('touchstart', (e) => { e.preventDefault(); handleCommandStart(id, direction); }, {passive: false});
+            btn.addEventListener('touchend', (e) => { e.preventDefault(); handleCommandEnd(id); }, {passive: false});
+            btn.addEventListener('mousedown', () => handleCommandStart(id, direction));
+            btn.addEventListener('mouseup', () => handleCommandEnd(id));
         }
 
         setupButton('btn-fwd', 1);
         setupButton('btn-rev', -1);
+
+        // Keyboard Support
+        window.addEventListener('keydown', (e) => {
+            const key = e.key.toLowerCase();
+            if (keysPressed[key]) return; // Prevent repeat fire
+            
+            if (key === 'w') {
+                keysPressed[key] = true;
+                handleCommandStart('btn-fwd', 1);
+            } else if (key === 's') {
+                keysPressed[key] = true;
+                handleCommandStart('btn-rev', -1);
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            const key = e.key.toLowerCase();
+            keysPressed[key] = false;
+            
+            if (key === 'w') {
+                handleCommandEnd('btn-fwd');
+            } else if (key === 's') {
+                handleCommandEnd('btn-rev');
+            }
+        });
     </script>
 </body>
 </html>
