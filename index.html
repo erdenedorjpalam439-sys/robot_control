@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Удирдах самбар<\/title>
+    <title>Удирдлага</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { 
@@ -13,6 +13,10 @@
             touch-action: none; 
             overflow: hidden; 
             user-select: none;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
         }
         .panel { background: #111; border: 1px solid #333; border-radius: 12px; padding: 15px; }
         .joystick-view { 
@@ -35,6 +39,7 @@
             transform: translate(-50%, -50%); 
             box-shadow: 0 0 20px #0f0; 
             z-index: 10;
+            pointer-events: none;
         }
         .active-key { background: #0f0 !important; color: #000 !important; box-shadow: 0 0 15px #0f0; }
         .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; }
@@ -57,18 +62,17 @@
         .fwd { background: #0f0; }
         .rev { background: #f00; }
         
-        /* Hidden IP input styling */
         input[type="password"] {
             letter-spacing: 2px;
         }
     </style>
 </head>
-<body class="p-6 flex flex-col gap-4 h-screen">
+<body class="p-4 md:p-6 gap-4">
 
     <!-- Header -->
     <div class="panel flex justify-between items-center py-3">
         <div>
-            <h1 class="text-xl font-bold tracking-tighter text-white">УДИРДЛАГА <span class="text-green-500 text-xs ml-2">V2.2</span></h1>
+            <h1 class="text-xl font-bold tracking-tighter text-white">УДИРДЛАГА <span class="text-green-500 text-xs ml-2">V2.3</span></h1>
             <p class="text-[10px] text-gray-500 uppercase tracking-widest">
                 <span id="status-dot" class="status-dot bg-red-600"></span>
                 Холболт: <span id="link-text">Салсан</span> | PWM суурь: 50
@@ -76,22 +80,22 @@
         </div>
         <div class="flex gap-4 items-center">
             <div class="relative">
-                <input id="ip-input" type="password" placeholder="IP хаяг" 
-                       class="bg-black border border-gray-700 px-3 py-1 rounded text-sm text-center text-white focus:border-green-500 outline-none w-40">
-                <button onclick="toggleIP()" class="absolute right-2 top-1.5 text-[10px] text-gray-500">👁</button>
+                <input id="ip-input" type="password" placeholder="IP хаяг" autocomplete="off"
+                       class="bg-black border border-gray-700 px-3 py-1 rounded text-sm text-center text-white focus:border-green-500 outline-none w-36 md:w-48">
+                <button id="toggle-ip-btn" class="absolute right-2 top-1.5 text-[10px] text-gray-500">👁</button>
             </div>
         </div>
     </div>
 
-    <div class="flex flex-1 gap-4 overflow-hidden">
+    <div class="flex flex-1 gap-4 overflow-hidden flex-col md:flex-row">
         <!-- Center Console -->
-        <div class="panel flex-[2] flex flex-col items-center justify-around">
+        <div class="panel flex-[2] flex flex-col items-center justify-around min-h-[300px]">
             <div class="text-center">
                 <p class="text-[10px] text-gray-500 uppercase font-bold mb-1">Хөдөлгөөний чиглэл</p>
-                <h2 id="dir-text" class="text-2xl font-black text-white tracking-widest italic">ЗОГСОлт</h2>
+                <h2 id="dir-text" class="text-2xl font-black text-white tracking-widest italic">ЗОГСОЛТ</h2>
             </div>
 
-            <div class="joystick-view">
+            <div class="joystick-view" id="joy-area">
                 <div id="visual-stick" class="stick"></div>
                 <div class="absolute top-1/2 left-0 w-full h-[1px] bg-gray-800"></div>
                 <div class="absolute left-1/2 top-0 h-full w-[1px] bg-gray-800"></div>
@@ -99,38 +103,38 @@
 
             <div class="grid grid-cols-2 gap-12 text-center">
                 <div>
-                    <p class="text-[9px] text-gray-500 uppercase">Зүүн тал</p>
+                    <p class="text-[9px] text-gray-500 uppercase font-bold">ЗҮҮН</p>
                     <p id="val-l" class="text-3xl font-bold text-white leading-none">0</p>
                 </div>
                 <div>
-                    <p class="text-[9px] text-gray-500 uppercase">Баруун тал</p>
+                    <p class="text-[9px] text-gray-500 uppercase font-bold">БАРУУН</p>
                     <p id="val-r" class="text-3xl font-bold text-white leading-none">0</p>
                 </div>
             </div>
         </div>
 
-        <!-- Right Side: Telemetry -->
-        <div class="flex flex-col gap-4 w-80">
+        <!-- Side Telemetry -->
+        <div class="flex flex-col gap-4 w-full md:w-80">
             <div class="panel flex-1">
                 <h3 class="text-[10px] text-gray-400 font-bold mb-4 border-b border-gray-800 pb-1 uppercase">Моторын төлөв (4WD)</h3>
                 <div class="grid grid-cols-2 gap-y-6 gap-x-4">
                     <div class="space-y-1">
-                        <p class="text-[8px] text-gray-500">M1 (УРД-ЗҮҮН)</p>
+                        <p class="text-[8px] text-gray-500 font-bold">M1 (УРД-ЗҮҮН)</p>
                         <div class="motor-indicator"><div id="m1-fill" class="motor-fill"></div></div>
                         <p id="m1-label" class="text-[9px] text-gray-400">ХҮЛЭЭЖ БАЙНА</p>
                     </div>
                     <div class="space-y-1">
-                        <p class="text-[8px] text-gray-500 text-right">M3 (УРД-БАРУУН)</p>
+                        <p class="text-[8px] text-gray-500 text-right font-bold">M3 (УРД-БАРУУН)</p>
                         <div class="motor-indicator ml-auto"><div id="m3-fill" class="motor-fill"></div></div>
                         <p id="m3-label" class="text-[9px] text-gray-400 text-right">ХҮЛЭЭЖ БАЙНА</p>
                     </div>
                     <div class="space-y-1">
-                        <p class="text-[8px] text-gray-500">M2 (АРД-ЗҮҮН)</p>
+                        <p class="text-[8px] text-gray-500 font-bold">M2 (АРД-ЗҮҮН)</p>
                         <div class="motor-indicator"><div id="m2-fill" class="motor-fill"></div></div>
                         <p id="m2-label" class="text-[9px] text-gray-400">ХҮЛЭЭЖ БАЙНА</p>
                     </div>
                     <div class="space-y-1">
-                        <p class="text-[8px] text-gray-500 text-right">M4 (АРД-БАРУУН)</p>
+                        <p class="text-[8px] text-gray-500 text-right font-bold">M4 (АРД-БАРУУН)</p>
                         <div class="motor-indicator ml-auto"><div id="m4-fill" class="motor-fill"></div></div>
                         <p id="m4-label" class="text-[9px] text-gray-400 text-right">ХҮЛЭЭЖ БАЙНА</p>
                     </div>
@@ -140,10 +144,10 @@
             <div class="panel">
                 <h3 class="text-[10px] text-gray-400 font-bold mb-3 uppercase">Оролтын төрөл</h3>
                 <div class="flex justify-between items-center mb-4">
-                    <span id="input-mode" class="px-3 py-1 bg-green-950 text-green-400 border border-green-800 rounded text-[10px] font-bold">ЗОГСОЛТ</span>
+                    <span id="input-mode" class="px-3 py-1 bg-green-950 text-green-400 border border-green-800 rounded text-[10px] font-bold uppercase">ЗОГСОЛТ</span>
                     <span class="text-[10px] text-gray-600">WASD: ИДЭВХТЭЙ</span>
                 </div>
-                <div class="grid grid-cols-3 gap-1 max-w-[120px] mx-auto opacity-50">
+                <div class="grid grid-cols-3 gap-1 max-w-[120px] mx-auto opacity-40">
                     <div></div><div id="key-w" class="p-2 bg-gray-900 border border-gray-700 rounded text-center text-xs">W</div><div></div>
                     <div id="key-a" class="p-2 bg-gray-900 border border-gray-700 rounded text-center text-xs">A</div>
                     <div id="key-s" class="p-2 bg-gray-900 border border-gray-700 rounded text-center text-xs">S</div>
@@ -159,7 +163,9 @@
         const statusDot = document.getElementById('status-dot');
         const linkText = document.getElementById('link-text');
         const dirText = document.getElementById('dir-text');
+        const toggleBtn = document.getElementById('toggle-ip-btn');
         
+        // Initial setup
         if(localStorage.getItem('last_ip')) ipInput.value = localStorage.getItem('last_ip');
 
         let bridgeActive = false;
@@ -170,16 +176,21 @@
         let keyboardStack = [];
         let gamepadIndex = null;
 
-        function toggleIP() {
+        // Toggle IP Visibility
+        toggleBtn.addEventListener('click', () => {
             ipInput.type = ipInput.type === "password" ? "text" : "password";
-        }
+        });
 
+        // Bridge Health Check
         async function pingBridge() {
             const ip = ipInput.value.trim();
             if(!ip) return;
             localStorage.setItem('last_ip', ip);
             try {
-                await fetch(`http://${ip}:5000/`, { mode: 'no-cors' });
+                // Ping the root endpoint
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 1000);
+                await fetch(`http://${ip}:5000/`, { mode: 'no-cors', signal: controller.signal });
                 bridgeActive = true;
                 statusDot.className = "status-dot bg-green-500";
                 linkText.innerText = "Холбогдсон";
@@ -191,7 +202,10 @@
         }
         setInterval(pingBridge, 3000);
 
-        window.addEventListener("gamepadconnected", (e) => { gamepadIndex = e.gamepad.index; });
+        window.addEventListener("gamepadconnected", (e) => { 
+            gamepadIndex = e.gamepad.index; 
+            console.log("Gamepad Linked");
+        });
 
         function getDirectionName(y, x) {
             if (Math.abs(x) < DEADZONE && Math.abs(y) < DEADZONE) return "ЗОГСОЛТ";
@@ -204,7 +218,7 @@
             if (angle < -67.5 && angle >= -112.5) return "ХОЙШОО";
             if (angle < -112.5 && angle >= -157.5) return "ХОЙШ-ЗҮҮН";
             if (angle < -22.5 && angle >= -67.5) return "ХОЙШ-БАРУУН";
-            return "ХӨДӨЛГӨӨНТЭЙ";
+            return "ХӨДӨЛГӨӨН";
         }
 
         function calculateMotors(y, x) {
@@ -214,7 +228,7 @@
             right = Math.max(-1, Math.min(1, right));
             const process = (val) => {
                 const absVal = Math.abs(val);
-                if (absVal < 0.02) return 0;
+                if (absVal < 0.05) return 0;
                 let pwm = MIN_PWM + (absVal * (MAX_PWM - MIN_PWM));
                 return Math.round(pwm * (val > 0 ? 1 : -1));
             };
@@ -240,6 +254,7 @@
         function update() {
             let motorData = { L: 0, R: 0, rawX: 0, rawY: 0 };
             let mode = "ЗОГСОЛТ";
+            
             const gp = gamepadIndex !== null ? navigator.getGamepads()[gamepadIndex] : null;
             if (gp && (Math.abs(gp.axes[0]) > DEADZONE || Math.abs(gp.axes[1]) > DEADZONE)) {
                 motorData = calculateMotors(-gp.axes[1], gp.axes[0]);
@@ -252,6 +267,7 @@
                 if (key === 'd') motorData = calculateMotors(0, 1);
                 mode = "ГАР";
             }
+
             dirText.innerText = getDirectionName(motorData.rawY, motorData.rawX);
             updateMotorUI(motorData.L, motorData.R);
             transmit(motorData, mode);
@@ -263,13 +279,18 @@
             document.getElementById('input-mode').innerText = mode;
             visualStick.style.left = (50 + (data.rawX * 40)) + "%";
             visualStick.style.top = (50 - (data.rawY * 40)) + "%";
-            if (packet === lastPacket || !bridgeActive) return;
+            
+            if (packet === lastPacket) return;
             lastPacket = packet;
+
+            if (!bridgeActive) return;
+
             const ip = ipInput.value.trim();
             fetch(`http://${ip}:5000/control`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain' },
-                body: JSON.stringify({ throttle: packet })
+                body: JSON.stringify({ throttle: packet }),
+                mode: 'no-cors'
             }).catch(()=>{});
         }
 
