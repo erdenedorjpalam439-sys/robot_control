@@ -3,68 +3,97 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RC Pro - 4WD Nexus</title>
+    <title>Nexus Command - Base 50</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background: #0a0a0a; color: #0f0; font-family: 'Courier New', monospace; touch-action: none; overflow: hidden; }
+        body { 
+            background: #0a0a0a; 
+            color: #0f0; 
+            font-family: 'Courier New', monospace; 
+            touch-action: none; 
+            overflow: hidden; 
+            user-select: none;
+        }
         .panel { background: #111; border: 1px solid #333; border-radius: 12px; padding: 15px; }
-        .joystick-view { width: 150px; height: 150px; border: 2px solid #222; border-radius: 50%; position: relative; background: radial-gradient(circle, #1a1a1a 0%, #000 100%); }
-        .stick { width: 40px; height: 40px; background: #0f0; border-radius: 50%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 15px #0f0; }
-        .motor-indicator { width: 40px; height: 10px; background: #222; border-radius: 5px; overflow: hidden; }
-        .motor-fill { height: 100%; width: 0%; background: #0f0; transition: width 0.1s; }
-        .active-key { background: #0f0 !important; color: #000 !important; }
+        .joystick-view { 
+            width: 180px; 
+            height: 180px; 
+            border: 2px solid #222; 
+            border-radius: 50%; 
+            position: relative; 
+            background: radial-gradient(circle, #1a1a1a 0%, #000 100%); 
+            box-shadow: inset 0 0 20px rgba(0,255,0,0.05);
+        }
+        .stick { 
+            width: 50px; 
+            height: 50px; 
+            background: #0f0; 
+            border-radius: 50%; 
+            position: absolute; 
+            top: 50%; 
+            left: 50%; 
+            transform: translate(-50%, -50%); 
+            box-shadow: 0 0 20px #0f0; 
+            transition: transform 0.05s linear;
+        }
+        .active-key { background: #0f0 !important; color: #000 !important; box-shadow: 0 0 15px #0f0; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; }
     </style>
 </head>
 <body class="p-6 flex flex-col gap-6 h-screen">
 
-    <!-- Header & Config -->
+    <!-- Header / Config -->
     <div class="panel flex justify-between items-center">
         <div>
-            <h1 class="text-xl font-bold tracking-tighter">NEXUS COMMAND v4.0</h1>
-            <p class="text-[10px] text-gray-500">4WD SKID-STEER PROPORTIONAL SYSTEM</p>
+            <h1 class="text-xl font-bold tracking-tighter text-white">NEXUS COMMAND</h1>
+            <p class="text-[10px] text-green-500 uppercase tracking-widest">
+                <span id="status-dot" class="status-dot bg-red-600"></span>
+                Link: <span id="link-text">Offline</span> | Base PWM: 50
+            </p>
         </div>
         <div class="flex gap-4 items-center">
-            <input id="ip-input" type="text" placeholder="192.168.x.x" class="bg-black border border-gray-700 px-3 py-1 rounded text-sm text-center">
-            <div id="connection-status" class="w-3 h-3 rounded-full bg-red-600 shadow-[0_0_10px_red]"></div>
+            <input id="ip-input" type="text" placeholder="Bridge IP (e.g. 192.168.1.5)" 
+                   class="bg-black border border-gray-700 px-3 py-2 rounded text-sm text-center text-white focus:border-green-500 outline-none w-48">
         </div>
     </div>
 
+    <!-- Main Control Area -->
     <div class="flex flex-1 gap-6">
-        <!-- Left: Visualizer -->
-        <div class="panel flex-1 flex flex-col items-center justify-center gap-8">
-            <div class="flex gap-20">
-                <div class="flex flex-col gap-2">
-                    <span class="text-[9px] text-center">SIDE L (M1/M2)</span>
-                    <div class="motor-indicator w-32"><div id="bar-l" class="motor-fill"></div></div>
-                </div>
-                <div class="flex flex-col gap-2">
-                    <span class="text-[9px] text-center">SIDE R (M3/M4)</span>
-                    <div class="motor-indicator w-32"><div id="bar-r" class="motor-fill"></div></div>
-                </div>
-            </div>
-
-            <div class="joystick-view">
+        <!-- Visual Feedback & Joystick Info -->
+        <div class="panel flex-1 flex flex-col items-center justify-center gap-6">
+            <div class="joystick-view" id="joy-container">
                 <div id="visual-stick" class="stick"></div>
             </div>
-
-            <div class="text-[11px] text-gray-400">
-                MODE: <span id="input-mode" class="text-white">IDLE</span> | 
-                PWR: <span id="pwr-display" class="text-white">0%</span>
+            <div class="grid grid-cols-2 gap-8 text-center w-full max-w-xs">
+                <div>
+                    <p class="text-[10px] text-gray-500 uppercase">Left Channel</p>
+                    <p id="val-l" class="text-2xl font-bold text-white">0</p>
+                </div>
+                <div>
+                    <p class="text-[10px] text-gray-500 uppercase">Right Channel</p>
+                    <p id="val-r" class="text-2xl font-bold text-white">0</p>
+                </div>
+            </div>
+            <div class="text-[10px] text-gray-400 bg-black px-4 py-1 rounded-full border border-gray-800">
+                SOURCE: <span id="input-mode" class="text-green-400">IDLE</span>
             </div>
         </div>
 
-        <!-- Right: Keyboard Layout -->
-        <div class="panel w-64 flex flex-col gap-4">
-            <h2 class="text-xs border-b border-gray-800 pb-2 text-gray-400 uppercase">Input Stack</h2>
-            <div class="grid grid-cols-3 gap-2">
-                <div></div><div id="key-w" class="p-4 bg-gray-900 rounded text-center font-bold">W</div><div></div>
-                <div id="key-a" class="p-4 bg-gray-900 rounded text-center font-bold">A</div>
-                <div id="key-s" class="p-4 bg-gray-900 rounded text-center font-bold">S</div>
-                <div id="key-d" class="p-4 bg-gray-900 rounded text-center font-bold">D</div>
+        <!-- Keyboard Legend / Visualizer -->
+        <div class="panel w-72 flex flex-col gap-4">
+            <h2 class="text-xs text-gray-400 uppercase font-bold border-b border-gray-800 pb-2">Manual Overrides</h2>
+            <div class="grid grid-cols-3 gap-2 py-4">
+                <div></div>
+                <div id="key-w" class="p-4 bg-gray-900 rounded text-center font-bold border border-gray-800">W</div>
+                <div></div>
+                <div id="key-a" class="p-4 bg-gray-900 rounded text-center font-bold border border-gray-800">A</div>
+                <div id="key-s" class="p-4 bg-gray-900 rounded text-center font-bold border border-gray-800">S</div>
+                <div id="key-d" class="p-4 bg-gray-900 rounded text-center font-bold border border-gray-800">D</div>
             </div>
-            <div class="mt-auto bg-black p-3 rounded text-[10px] text-green-700">
-                [SYSTEM LOG]<br>
-                <div id="log-content">READY FOR LINK...</div>
+            <div class="mt-auto text-[9px] text-gray-600 space-y-1">
+                <p>> USE XBOX LEFT STICK FOR ANALOG</p>
+                <p>> USE WASD FOR DIGITAL OVERRIDE</p>
+                <p>> BRIDGE POLLING RATE: 50ms</p>
             </div>
         </div>
     </div>
@@ -72,62 +101,58 @@
     <script>
         const ipInput = document.getElementById('ip-input');
         const visualStick = document.getElementById('visual-stick');
-        const logContent = document.getElementById('log-content');
+        const statusDot = document.getElementById('status-dot');
+        const linkText = document.getElementById('link-text');
         
         if(localStorage.getItem('last_ip')) ipInput.value = localStorage.getItem('last_ip');
 
         let bridgeActive = false;
         let lastPacket = "";
         
-        // Settings
-        const DEADZONE = 0.08;
-        const MIN_PWM = 110;
+        const DEADZONE = 0.12;
+        const MIN_PWM = 50;  // As requested: starts at 50
         const MAX_PWM = 255;
 
-        // Input State
         let keyboardStack = [];
         let gamepadIndex = null;
 
-        function log(msg) {
-            logContent.innerHTML = msg + "<br>" + logContent.innerHTML.split("<br>").slice(0, 3).join("<br>");
-        }
-
+        // Verify connection to the Python Bridge
         async function pingBridge() {
             const ip = ipInput.value.trim();
             if(!ip) return;
             localStorage.setItem('last_ip', ip);
             try {
+                // Use no-cors to avoid preflight issues on local network
                 await fetch(`http://${ip}:5000/`, { mode: 'no-cors' });
                 bridgeActive = true;
-                document.getElementById('connection-status').className = "w-3 h-3 rounded-full bg-green-500 shadow-[0_0_10px_#0f0]";
-                log("BRIDGE LINKED");
-            } catch (e) { log("LINK FAILED"); }
+                statusDot.className = "status-dot bg-green-500";
+                linkText.innerText = "Connected";
+            } catch (e) { 
+                bridgeActive = false;
+                statusDot.className = "status-dot bg-red-600";
+                linkText.innerText = "Offline";
+            }
         }
         setInterval(pingBridge, 3000);
 
-        window.addEventListener("gamepadconnected", (e) => {
+        window.addEventListener("gamepadconnected", (e) => { 
             gamepadIndex = e.gamepad.index;
-            log("XBOX CTRL CONNECTED");
+            console.log("Controller Connected");
         });
 
-        // Controller Mixing Logic
         function calculateMotors(y, x) {
-            // y: -1 to 1 (forward/backward)
-            // x: -1 to 1 (left/right)
-            
-            // Differential Drive mixing
+            // Standard Skid-Steer Mixing
             let left = y + x;
             let right = y - x;
 
-            // Constrain
+            // Cap ranges
             left = Math.max(-1, Math.min(1, left));
             right = Math.max(-1, Math.min(1, right));
 
-            // Map to PWM
             const process = (val) => {
                 const absVal = Math.abs(val);
-                if (absVal < 0.01) return 0;
-                // Map 0.01-1.0 to MIN_PWM-MAX_PWM
+                if (absVal < 0.02) return 0;
+                // Linear map: 0.0 -> MIN_PWM, 1.0 -> MAX_PWM
                 let pwm = MIN_PWM + (absVal * (MAX_PWM - MIN_PWM));
                 return Math.round(pwm * (val > 0 ? 1 : -1));
             };
@@ -139,52 +164,52 @@
             let motorData = { L: 0, R: 0, rawX: 0, rawY: 0 };
             let mode = "IDLE";
 
-            // 1. Check Gamepad First (Priority)
+            // 1. Check Gamepad
             const gp = gamepadIndex !== null ? navigator.getGamepads()[gamepadIndex] : null;
             if (gp && (Math.abs(gp.axes[0]) > DEADZONE || Math.abs(gp.axes[1]) > DEADZONE)) {
-                // Invert Y because Up is -1 on Gamepads
+                // Xbox Stick: Y is inverted by default
                 motorData = calculateMotors(-gp.axes[1], gp.axes[0]);
-                mode = "XBOX";
+                mode = "GAMEPAD";
             } 
-            // 2. Fallback to Keyboard Stack
+            // 2. Check Keyboard Fallback
             else if (keyboardStack.length > 0) {
                 const key = keyboardStack[keyboardStack.length - 1];
                 if (key === 'w') motorData = calculateMotors(1, 0);
                 if (key === 's') motorData = calculateMotors(-1, 0);
                 if (key === 'a') motorData = calculateMotors(0, -1);
                 if (key === 'd') motorData = calculateMotors(0, 1);
-                mode = "KEYS";
+                mode = "KEYBOARD";
             }
 
             transmit(motorData, mode);
             requestAnimationFrame(update);
         }
 
-        async function transmit(data, mode) {
+        function transmit(data, mode) {
             const packet = `L:${data.L},R:${data.R}`;
             
             // Update UI
             document.getElementById('input-mode').innerText = mode;
-            document.getElementById('bar-l').style.width = (Math.abs(data.L)/255*100) + "%";
-            document.getElementById('bar-r').style.width = (Math.abs(data.R)/255*100) + "%";
+            document.getElementById('val-l').innerText = data.L;
+            document.getElementById('val-r').innerText = data.R;
+            
+            // Move Visual Stick (40 is the visual boundary)
             visualStick.style.left = (50 + (data.rawX * 40)) + "%";
             visualStick.style.top = (50 - (data.rawY * 40)) + "%";
-            document.getElementById('pwr-display').innerText = Math.round(Math.max(Math.abs(data.L), Math.abs(data.R)) / 255 * 100) + "%";
 
+            // Only send if data changed and bridge is reachable
             if (packet === lastPacket || !bridgeActive) return;
             lastPacket = packet;
 
             const ip = ipInput.value.trim();
-            try {
-                fetch(`http://${ip}:5000/control`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'text/plain' },
-                    body: JSON.stringify({ throttle: packet })
-                });
-            } catch (e) {}
+            fetch(`http://${ip}:5000/control`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify({ throttle: packet })
+            }).catch(()=>{});
         }
 
-        // Keyboard Logic
+        // Keyboard Handling
         window.addEventListener('keydown', (e) => {
             const key = e.key.toLowerCase();
             if (['w','a','s','d'].includes(key) && !keyboardStack.includes(key)) {
@@ -195,9 +220,11 @@
         window.addEventListener('keyup', (e) => {
             const key = e.key.toLowerCase();
             keyboardStack = keyboardStack.filter(k => k !== key);
-            if(document.getElementById('key-'+key)) document.getElementById('key-'+key).classList.remove('active-key');
+            const el = document.getElementById('key-'+key);
+            if(el) el.classList.remove('active-key');
         });
 
+        // Start Loop
         update();
     </script>
 </body>
