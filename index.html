@@ -18,86 +18,47 @@
             flex-direction: column;
             height: 100vh;
         }
-        /* Prevent browser scrolling/bouncing */
         html, body { position: fixed; width: 100%; height: 100%; }
-
         .panel { background: #111; border: 1px solid #333; border-radius: 12px; padding: 15px; }
-        
-        .joystick-container {
-            width: 220px;
-            height: 220px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-        }
-
+        .joystick-container { width: 220px; height: 220px; display: flex; align-items: center; justify-content: center; position: relative; }
         .joystick-view { 
-            width: 100%; 
-            height: 100%; 
-            border: 2px solid #222; 
-            border-radius: 50%; 
-            position: relative; 
-            background: radial-gradient(circle, #1a1a1a 0%, #000 100%); 
-            box-shadow: inset 0 0 30px rgba(0,255,0,0.05);
-            touch-action: none;
+            width: 100%; height: 100%; border: 2px solid #222; border-radius: 50%; 
+            position: relative; background: radial-gradient(circle, #1a1a1a 0%, #000 100%); 
+            box-shadow: inset 0 0 30px rgba(0,255,0,0.05); touch-action: none;
         }
-
         .stick { 
-            width: 65px; 
-            height: 65px; 
-            background: radial-gradient(circle at 30% 30%, #55ff55, #008800); 
-            border-radius: 50%; 
-            position: absolute; 
-            top: 50%; 
-            left: 50%; 
-            transform: translate(-50%, -50%); 
-            box-shadow: 0 0 20px rgba(0,255,0,0.4); 
-            z-index: 10;
-            pointer-events: none;
-            transition: transform 0.05s ease-out;
+            width: 65px; height: 65px; background: radial-gradient(circle at 30% 30%, #55ff55, #008800); 
+            border-radius: 50%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+            box-shadow: 0 0 20px rgba(0,255,0,0.4); z-index: 10; pointer-events: none;
         }
-
-        .motor-indicator {
-            width: 100%;
-            height: 12px;
-            background: #222;
-            border-radius: 6px;
-            position: relative;
-            overflow: hidden;
-            border: 1px solid #444;
-        }
-        .motor-fill {
-            height: 100%;
-            background: #0f0;
-            width: 0%;
-            transition: width 0.1s linear;
-        }
+        .motor-indicator { width: 100%; height: 12px; background: #222; border-radius: 6px; position: relative; overflow: hidden; border: 1px solid #444; }
+        .motor-fill { height: 100%; background: #0f0; width: 0%; transition: width 0.1s linear; }
         .fwd { background: #0f0; box-shadow: 0 0 10px #0f0; }
         .rev { background: #f00; box-shadow: 0 0 10px #f00; }
     </style>
 </head>
 <body class="p-4 gap-4">
 
-    <!-- Header -->
     <div class="panel flex justify-between items-center">
         <div>
-            <h1 class="text-xl font-bold text-white uppercase italic">Nexus Vector <span class="text-green-500 text-xs ml-2">V3.1</span></h1>
+            <h1 class="text-xl font-bold text-white uppercase italic">Nexus Vector <span class="text-green-500 text-xs ml-2">V3.2</span></h1>
             <p class="text-[10px] text-gray-500 uppercase tracking-widest">
-                <span id="status-dot" class="status-dot bg-red-600 w-2 h-2 rounded-full inline-block mr-1"></span>
-                <span id="link-text">OFFLINE</span> | Vector Mixing
+                <span id="status-dot" class="w-2 h-2 rounded-full inline-block mr-1 bg-red-600"></span>
+                <span id="link-text">DISCONNECTED</span>
             </p>
         </div>
-        <input id="ip-input" type="text" placeholder="192.168.x.x" 
-               class="bg-black border border-gray-700 px-3 py-1 rounded text-sm text-green-500 text-center focus:border-green-500 outline-none w-32">
+        <div class="flex flex-col items-end">
+            <input id="ip-input" type="text" placeholder="Bridge IP (e.g. 192.168.1.5)" 
+                   class="bg-black border border-gray-700 px-3 py-1 rounded text-sm text-green-500 text-center focus:border-green-500 outline-none w-48">
+            <span id="ping-ms" class="text-[8px] text-gray-600 mt-1">LATENCY: --ms</span>
+        </div>
     </div>
 
     <div class="flex flex-1 gap-4 flex-col md:flex-row overflow-hidden">
-        <!-- Main Control -->
         <div class="panel flex-[3] flex flex-col items-center justify-center gap-6">
             <div class="text-center">
                 <p id="dir-text" class="text-4xl font-black text-white tracking-widest uppercase">STOP</p>
-                <p id="input-mode" class="text-[10px] text-green-800 font-bold mt-1">READY</p>
+                <p id="input-mode" class="text-[10px] text-green-800 font-bold mt-1">TOUCH AREA READY</p>
             </div>
 
             <div class="joystick-container">
@@ -120,10 +81,8 @@
             </div>
         </div>
 
-        <!-- Telemetry -->
         <div class="panel w-full md:w-72 flex flex-col gap-6">
-            <h3 class="text-[10px] text-gray-400 font-bold border-b border-gray-800 pb-2 uppercase">System Telemetry</h3>
-            
+            <h3 class="text-[10px] text-gray-400 font-bold border-b border-gray-800 pb-2 uppercase">Real-time Data</h3>
             <div class="space-y-4">
                 <div class="space-y-1">
                     <div class="flex justify-between text-[10px]"><span>LEFT PWM</span><span id="perc-l">0%</span></div>
@@ -134,12 +93,6 @@
                     <div class="motor-indicator"><div id="fill-r" class="motor-fill"></div></div>
                 </div>
             </div>
-
-            <div class="mt-auto opacity-30 text-[9px] leading-relaxed">
-                TOUCH LOGIC: VECTORIAL SUM<br>
-                BAUD: 115200<br>
-                MODE: ANALOG STEERING
-            </div>
         </div>
     </div>
 
@@ -147,55 +100,41 @@
         const ipInput = document.getElementById('ip-input');
         const visualStick = document.getElementById('visual-stick');
         const joyArea = document.getElementById('joy-area');
+        const statusDot = document.getElementById('status-dot');
+        const linkText = document.getElementById('link-text');
         
         if(localStorage.getItem('last_ip')) ipInput.value = localStorage.getItem('last_ip');
 
         let lastPacket = "";
-        const DEADZONE = 0.15;
-        const MIN_PWM = 50; 
-        const MAX_PWM = 255;
-        
         let touchData = { active: false, x: 0, y: 0 };
 
-        // Better mixing: Y is forward, X is turn
         function mixMotors(y, x) {
             let mag = Math.sqrt(x*x + y*y);
-            if (mag < DEADZONE) return { L: 0, R: 0, rawX: 0, rawY: 0 };
+            if (mag < 0.15) return { L: 0, R: 0, rawX: 0, rawY: 0 };
             if (mag > 1) mag = 1;
 
-            // Vector Mixing
             let l = y + x;
             let r = y - x;
 
-            // Normalize
             let maxInput = Math.max(Math.abs(l), Math.abs(r));
             if (maxInput > 1) { l /= maxInput; r /= maxInput; }
 
-            // Apply sensitivity
             l *= mag; r *= mag;
 
             const scale = (v) => {
                 if (Math.abs(v) < 0.05) return 0;
-                let p = MIN_PWM + (Math.abs(v) * (MAX_PWM - MIN_PWM));
-                return Math.round(p * (v > 0 ? 1 : -1));
+                return Math.round((50 + (Math.abs(v) * 205)) * (v > 0 ? 1 : -1));
             };
 
             return { L: scale(l), R: scale(r), rawX: x, rawY: y };
         }
 
-        // --- Touch Improvement ---
         function updateJoystick(e) {
             e.preventDefault();
             const rect = joyArea.getBoundingClientRect();
             const touch = e.touches ? e.touches[0] : e;
-            const centerX = rect.left + rect.width / 2;
-            const centerY = rect.top + rect.height / 2;
-            
-            let dx = (touch.clientX - centerX) / (rect.width / 2);
-            let dy = (centerY - touch.clientY) / (rect.height / 2);
-            
-            touchData.x = Math.max(-1, Math.min(1, dx));
-            touchData.y = Math.max(-1, Math.min(1, dy));
+            touchData.x = Math.max(-1, Math.min(1, (touch.clientX - (rect.left + rect.width / 2)) / (rect.width / 2)));
+            touchData.y = Math.max(-1, Math.min(1, ((rect.top + rect.height / 2) - touch.clientY) / (rect.height / 2)));
         }
 
         joyArea.addEventListener('touchstart', (e) => { touchData.active = true; updateJoystick(e); }, {passive: false});
@@ -204,43 +143,37 @@
 
         function loop() {
             let motorData = mixMotors(touchData.y, touchData.x);
-            
-            // UI
             document.getElementById('val-l').innerText = motorData.L;
             document.getElementById('val-r').innerText = motorData.R;
-            
             visualStick.style.transform = `translate(calc(-50% + ${motorData.rawX * 80}px), calc(-50% - ${motorData.rawY * 80}px))`;
-
-            const updateBar = (side, val) => {
-                const fill = document.getElementById('fill-' + side);
-                const perc = document.getElementById('perc-' + side);
-                const absVal = Math.abs(val);
-                fill.style.width = (absVal / 255 * 100) + "%";
-                fill.className = `motor-fill ${val >= 0 ? 'fwd' : 'rev'}`;
-                perc.innerText = Math.round(absVal / 255 * 100) + "%";
-            };
-            updateBar('l', motorData.L);
-            updateBar('r', motorData.R);
-
+            
             transmit(motorData);
             requestAnimationFrame(loop);
         }
 
-        function transmit(data) {
+        async function transmit(data) {
             const packet = `L:${data.L},R:${data.R}`;
             if (packet === lastPacket) return;
-            lastPacket = packet;
-
+            
             const ip = ipInput.value.trim();
             if (!ip) return;
             localStorage.setItem('last_ip', ip);
 
-            // Using simple body to ensure bridge.py can read it easily
-            fetch(`http://${ip}:5000/control`, {
-                method: 'POST',
-                mode: 'no-cors',
-                body: JSON.stringify({ throttle: packet })
-            }).catch(()=>{});
+            try {
+                // Changed to standard POST to ensure data is sent
+                await fetch(`http://${ip}:5000/control`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ throttle: packet }),
+                    // We removed no-cors. Bridge.py now has CORS enabled properly.
+                });
+                lastPacket = packet;
+                statusDot.className = "w-2 h-2 rounded-full inline-block mr-1 bg-green-500";
+                linkText.innerText = "CONNECTED";
+            } catch(e) {
+                statusDot.className = "w-2 h-2 rounded-full inline-block mr-1 bg-red-600";
+                linkText.innerText = "CONNECTION LOST";
+            }
         }
 
         loop();
