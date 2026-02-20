@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Удирдлага</title>
+    <title>Nexus Vector Controller</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { 
-            background: #0a0a0a; 
-            color: #0f0; 
-            font-family: 'Courier New', monospace; 
+            background: #050505; 
+            color: #00ff41; 
+            font-family: 'monospace'; 
             touch-action: none; 
             overflow: hidden; 
             user-select: none;
@@ -18,164 +18,161 @@
             flex-direction: column;
             height: 100vh;
         }
-        html, body { position: fixed; width: 100%; height: 100%; }
-        .panel { background: #111; border: 1px solid #333; border-radius: 12px; padding: 15px; }
-        .joystick-container { width: 220px; height: 220px; display: flex; align-items: center; justify-content: center; position: relative; }
+        .panel { background: rgba(15, 15, 15, 0.9); border: 1px solid #1a3a1a; border-radius: 8px; }
         .joystick-view { 
-            width: 100%; height: 100%; border: 2px solid #222; border-radius: 50%; 
-            position: relative; background: radial-gradient(circle, #1a1a1a 0%, #000 100%); 
-            box-shadow: inset 0 0 30px rgba(0,255,0,0.05); touch-action: none;
+            width: 240px; height: 240px; border: 2px solid #1a3a1a; border-radius: 50%; 
+            position: relative; background: radial-gradient(circle, #0a1a0a 0%, #000 100%); 
+            box-shadow: 0 0 20px rgba(0,255,0,0.05); touch-action: none;
         }
         .stick { 
-            width: 65px; height: 65px; background: radial-gradient(circle at 30% 30%, #55ff55, #008800); 
-            border-radius: 50%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
-            box-shadow: 0 0 20px rgba(0,255,0,0.4); z-index: 10; pointer-events: none;
+            width: 70px; height: 70px; 
+            background: linear-gradient(145deg, #00ff00, #008800); 
+            border-radius: 50%; position: absolute; top: 50%; left: 50%; 
+            transform: translate(-50%, -50%); box-shadow: 0 0 30px rgba(0,255,0,0.5); 
+            z-index: 10; pointer-events: none;
         }
-        .motor-indicator { width: 100%; height: 12px; background: #222; border-radius: 6px; position: relative; overflow: hidden; border: 1px solid #444; }
-        .motor-fill { height: 100%; background: #0f0; width: 0%; transition: width 0.1s linear; }
-        .fwd { background: #0f0; box-shadow: 0 0 10px #0f0; }
-        .rev { background: #f00; box-shadow: 0 0 10px #f00; }
+        .bar-bg { width: 100%; height: 10px; background: #111; border-radius: 5px; overflow: hidden; border: 1px solid #222; }
+        .bar-fill { height: 100%; background: #00ff00; width: 0%; transition: width 0.1s; }
+        .status-on { color: #00ff00; text-shadow: 0 0 10px #00ff00; }
+        .status-off { color: #ff0000; text-shadow: 0 0 10px #ff0000; }
     </style>
 </head>
 <body class="p-4 gap-4">
 
-    <div class="panel flex justify-between items-center">
+    <!-- Header Diagnostic Bar -->
+    <div class="panel p-3 flex justify-between items-center border-b-2 border-green-900">
         <div>
-            <h1 class="text-xl font-bold text-white uppercase italic">Nexus Vector <span class="text-green-500 text-xs ml-2">V3.2</span></h1>
-            <p class="text-[10px] text-gray-500 uppercase tracking-widest">
-                <span id="status-dot" class="w-2 h-2 rounded-full inline-block mr-1 bg-red-600"></span>
-                <span id="link-text">DISCONNECTED</span>
-            </p>
+            <h1 class="text-lg font-bold tracking-widest italic">NEXUS_VECTOR_V4.0</h1>
+            <div class="text-[10px] flex gap-3 uppercase">
+                <span>LINK: <span id="link-status" class="status-off">DISCONNECTED</span></span>
+                <span>LATENCY: <span id="ping">--</span>ms</span>
+            </div>
         </div>
-        <div class="flex flex-col items-end">
-            <input id="ip-input" type="text" placeholder="Bridge IP (e.g. 192.168.1.5)" 
-                   class="bg-black border border-gray-700 px-3 py-1 rounded text-sm text-green-500 text-center focus:border-green-500 outline-none w-48">
-            <span id="ping-ms" class="text-[8px] text-gray-600 mt-1">LATENCY: --ms</span>
-        </div>
+        <input id="ip-addr" type="text" placeholder="BRIDGE_IP" 
+               class="bg-black border border-green-900 px-3 py-1 rounded text-sm text-green-400 text-center outline-none w-40 focus:ring-1 ring-green-500">
     </div>
 
-    <div class="flex flex-1 gap-4 flex-col md:flex-row overflow-hidden">
-        <div class="panel flex-[3] flex flex-col items-center justify-center gap-6">
-            <div class="text-center">
-                <p id="dir-text" class="text-4xl font-black text-white tracking-widest uppercase">STOP</p>
-                <p id="input-mode" class="text-[10px] text-green-800 font-bold mt-1">TOUCH AREA READY</p>
+    <div class="flex flex-1 gap-4 flex-col lg:flex-row overflow-hidden">
+        <!-- Main Control Logic -->
+        <div class="panel flex-[3] flex flex-col items-center justify-center p-6 relative">
+            <div class="absolute top-4 left-4 text-[10px] text-green-800">VECTOR_MIXING_ENGINE: ENABLED</div>
+            
+            <div class="mb-8 text-center">
+                <div id="dir-display" class="text-5xl font-black italic opacity-80">STBY</div>
             </div>
 
-            <div class="joystick-container">
-                <div class="joystick-view" id="joy-area">
-                    <div id="visual-stick" class="stick"></div>
-                    <div class="absolute top-1/2 left-0 w-full h-[1px] bg-gray-900"></div>
-                    <div class="absolute left-1/2 top-0 h-full w-[1px] bg-gray-900"></div>
-                </div>
+            <div class="joystick-view" id="joy-surface">
+                <div id="joy-stick" class="stick"></div>
+                <div class="absolute top-1/2 w-full h-[1px] bg-green-900 opacity-20"></div>
+                <div class="absolute left-1/2 h-full w-[1px] bg-green-900 opacity-20"></div>
             </div>
 
-            <div class="flex gap-16">
-                <div class="text-center">
-                    <p class="text-[10px] text-gray-500 mb-1">L-MOTOR</p>
-                    <p id="val-l" class="text-3xl font-bold text-white">0</p>
-                </div>
-                <div class="text-center">
-                    <p class="text-[10px] text-gray-500 mb-1">R-MOTOR</p>
-                    <p id="val-r" class="text-3xl font-bold text-white">0</p>
-                </div>
+            <div class="mt-10 flex gap-12 text-center">
+                <div><p class="text-[10px] text-gray-500 mb-1">CH_LEFT</p><p id="val-l" class="text-3xl font-mono">0</p></div>
+                <div><p class="text-[10px] text-gray-500 mb-1">CH_RIGHT</p><p id="val-r" class="text-3xl font-mono">0</p></div>
             </div>
         </div>
 
-        <div class="panel w-full md:w-72 flex flex-col gap-6">
-            <h3 class="text-[10px] text-gray-400 font-bold border-b border-gray-800 pb-2 uppercase">Real-time Data</h3>
+        <!-- System Telemetry -->
+        <div class="panel flex-1 p-4 flex flex-col gap-6">
+            <h2 class="text-xs font-bold border-b border-green-900 pb-2 mb-2">TELEMETRY</h2>
+            
             <div class="space-y-4">
-                <div class="space-y-1">
-                    <div class="flex justify-between text-[10px]"><span>LEFT PWM</span><span id="perc-l">0%</span></div>
-                    <div class="motor-indicator"><div id="fill-l" class="motor-fill"></div></div>
+                <div>
+                    <div class="flex justify-between text-[10px] mb-1"><span>MOTOR_GROUP_L</span><span id="p-l">0%</span></div>
+                    <div class="bar-bg"><div id="f-l" class="bar-fill"></div></div>
                 </div>
-                <div class="space-y-1">
-                    <div class="flex justify-between text-[10px]"><span>RIGHT PWM</span><span id="perc-r">0%</span></div>
-                    <div class="motor-indicator"><div id="fill-r" class="motor-fill"></div></div>
+                <div>
+                    <div class="flex justify-between text-[10px] mb-1"><span>MOTOR_GROUP_R</span><span id="p-r">0%</span></div>
+                    <div class="bar-bg"><div id="f-r" class="bar-fill"></div></div>
                 </div>
+            </div>
+
+            <div class="mt-auto p-3 bg-black rounded border border-green-900 text-[9px] text-green-700">
+                <p>> BAUD_RATE: 115200</p>
+                <p>> PACKET_TYPE: STR_JSON</p>
+                <p>> DRIVE_MODE: DIFFERENTIAL</p>
             </div>
         </div>
     </div>
 
     <script>
-        const ipInput = document.getElementById('ip-input');
-        const visualStick = document.getElementById('visual-stick');
-        const joyArea = document.getElementById('joy-area');
-        const statusDot = document.getElementById('status-dot');
-        const linkText = document.getElementById('link-text');
-        
-        if(localStorage.getItem('last_ip')) ipInput.value = localStorage.getItem('last_ip');
+        const state = { active: false, x: 0, y: 0, lastP: "" };
+        const el = {
+            stick: document.getElementById('joy-stick'),
+            surface: document.getElementById('joy-surface'),
+            ip: document.getElementById('ip-addr'),
+            status: document.getElementById('link-status'),
+            ping: document.getElementById('ping')
+        };
 
-        let lastPacket = "";
-        let touchData = { active: false, x: 0, y: 0 };
+        if(localStorage.getItem('robot_ip')) el.ip.value = localStorage.getItem('robot_ip');
 
-        function mixMotors(y, x) {
+        function mix(y, x) {
             let mag = Math.sqrt(x*x + y*y);
-            if (mag < 0.15) return { L: 0, R: 0, rawX: 0, rawY: 0 };
+            if (mag < 0.15) return { l: 0, r: 0, x: 0, y: 0 };
             if (mag > 1) mag = 1;
 
             let l = y + x;
             let r = y - x;
 
-            let maxInput = Math.max(Math.abs(l), Math.abs(r));
-            if (maxInput > 1) { l /= maxInput; r /= maxInput; }
+            const maxIn = Math.max(Math.abs(l), Math.abs(r));
+            if (maxIn > 1) { l /= maxIn; r /= maxIn; }
 
-            l *= mag; r *= mag;
-
-            const scale = (v) => {
-                if (Math.abs(v) < 0.05) return 0;
-                return Math.round((50 + (Math.abs(v) * 205)) * (v > 0 ? 1 : -1));
-            };
-
-            return { L: scale(l), R: scale(r), rawX: x, rawY: y };
+            const scale = (v) => Math.round((v * mag) * 255);
+            return { l: scale(l), r: scale(r), x, y };
         }
 
-        function updateJoystick(e) {
+        const handleMove = (e) => {
+            if(!state.active) return;
             e.preventDefault();
-            const rect = joyArea.getBoundingClientRect();
-            const touch = e.touches ? e.touches[0] : e;
-            touchData.x = Math.max(-1, Math.min(1, (touch.clientX - (rect.left + rect.width / 2)) / (rect.width / 2)));
-            touchData.y = Math.max(-1, Math.min(1, ((rect.top + rect.height / 2) - touch.clientY) / (rect.height / 2)));
-        }
+            const r = el.surface.getBoundingClientRect();
+            const t = e.touches ? e.touches[0] : e;
+            state.x = (t.clientX - (r.left + r.width/2)) / (r.width/2);
+            state.y = ((r.top + r.height/2) - t.clientY) / (r.height/2);
+            state.x = Math.max(-1, Math.min(1, state.x));
+            state.y = Math.max(-1, Math.min(1, state.y));
+        };
 
-        joyArea.addEventListener('touchstart', (e) => { touchData.active = true; updateJoystick(e); }, {passive: false});
-        window.addEventListener('touchmove', (e) => { if(touchData.active) updateJoystick(e); }, {passive: false});
-        window.addEventListener('touchend', () => { touchData.active = false; touchData.x = 0; touchData.y = 0; });
+        el.surface.addEventListener('touchstart', (e) => { state.active = true; handleMove(e); }, {passive: false});
+        window.addEventListener('touchmove', handleMove, {passive: false});
+        window.addEventListener('touchend', () => { state.active = false; state.x = 0; state.y = 0; });
 
-        function loop() {
-            let motorData = mixMotors(touchData.y, touchData.x);
-            document.getElementById('val-l').innerText = motorData.L;
-            document.getElementById('val-r').innerText = motorData.R;
-            visualStick.style.transform = `translate(calc(-50% + ${motorData.rawX * 80}px), calc(-50% - ${motorData.rawY * 80}px))`;
+        async function loop() {
+            const data = mix(state.y, state.x);
             
-            transmit(motorData);
+            // UI Updates
+            el.stick.style.transform = `translate(calc(-50% + ${data.x * 90}px), calc(-50% - ${data.y * 90}px))`;
+            document.getElementById('val-l').innerText = data.l;
+            document.getElementById('val-r').innerText = data.r;
+            document.getElementById('f-l').style.width = Math.abs(data.l/2.55) + "%";
+            document.getElementById('f-r').style.width = Math.abs(data.r/2.55) + "%";
+
+            // Transmit
+            const packet = `L:${data.l},R:${data.r}`;
+            if (packet !== state.lastP) {
+                const ip = el.ip.value.trim();
+                if(ip) {
+                    localStorage.setItem('robot_ip', ip);
+                    const start = Date.now();
+                    try {
+                        await fetch(`http://${ip}:5000/control`, {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ throttle: packet })
+                        });
+                        state.lastP = packet;
+                        el.status.className = "status-on";
+                        el.status.innerText = "CONNECTED";
+                        el.ping.innerText = Date.now() - start;
+                    } catch(e) {
+                        el.status.className = "status-off";
+                        el.status.innerText = "LOST";
+                    }
+                }
+            }
             requestAnimationFrame(loop);
         }
-
-        async function transmit(data) {
-            const packet = `L:${data.L},R:${data.R}`;
-            if (packet === lastPacket) return;
-            
-            const ip = ipInput.value.trim();
-            if (!ip) return;
-            localStorage.setItem('last_ip', ip);
-
-            try {
-                // Changed to standard POST to ensure data is sent
-                await fetch(`http://${ip}:5000/control`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ throttle: packet }),
-                    // We removed no-cors. Bridge.py now has CORS enabled properly.
-                });
-                lastPacket = packet;
-                statusDot.className = "w-2 h-2 rounded-full inline-block mr-1 bg-green-500";
-                linkText.innerText = "CONNECTED";
-            } catch(e) {
-                statusDot.className = "w-2 h-2 rounded-full inline-block mr-1 bg-red-600";
-                linkText.innerText = "CONNECTION LOST";
-            }
-        }
-
         loop();
     </script>
 </body>
